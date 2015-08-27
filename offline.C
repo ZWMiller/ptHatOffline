@@ -1,0 +1,242 @@
+// Offline Plots - Z. Miller August 15, 2015
+//
+// .L offline.C
+// offline("FILENAME") # Without .root Extension
+// modes: 0 = no ID about type of input, 1 = c/cbar, 2 = b/bbar
+
+void offline(const char* FileName="test", const Int_t mode=0)
+{
+  if(mode == 0)
+    cout << endl << "No mode specified in offline('fileName',mode):" << endl
+	 << "mode 1: c/cbar; mode 2: b/bbar." << endl
+	 << "Running with mode set to undetermined" << endl << endl;
+  
+  // Set Style parameters for this macro
+  //gStyle->SetOptTitle(1); // Show Title (off by default for cleanliness)
+  gErrorIgnoreLevel = kError; // Set Verbosity Level (kPrint shows all)
+  // sets batch mode, so don't draw canvas
+  number = 2;
+  while(number > 1 || number < 0){
+    std::cout << "Batch Mode? [default: 1]: ";
+    std::string input;
+    std::getline( std::cin, input );
+    if ( !input.empty() ) {
+      std::istringstream stream( input );
+      stream >> number;
+      if(number == 0)
+	gROOT->SetBatch(kFALSE);
+      if(number == 1)
+	gROOT->SetBatch(kTRUE);
+    }
+    else
+      {
+	number = 1;
+	gROOT->SetBatch(kTRUE);
+      }
+  }
+
+    // Set option for pdf creation
+  number = 2; Bool_t makePDF = kTRUE;
+  while(number > 1 || number < 0){
+    std::cout << "Make PDF? [default: 1]: ";
+    std::string input;
+    std::getline( std::cin, input );
+    if ( !input.empty() ){
+      std::istringstream stream( input );
+      stream >> number;
+      if(number == 0)
+	makePDF = kFALSE;
+      if(number == 1)
+	makePDF = kTRUE;
+    }
+    else
+      number = 1; 
+  }
+
+     // Set option for .root creation
+  number = 2; Bool_t makeROOT = kTRUE;
+  while(number > 1 || number < 0){
+    std::cout << "Make .root? [default: 1]: ";
+    std::string input;
+    std::getline( std::cin, input );
+    if ( !input.empty() ){
+      std::istringstream stream( input );
+      stream >> number;
+      if(number == 0)
+	makeROOT = kFALSE;
+      if(number == 1){
+	makeROOT = kTRUE;
+      }
+    }
+    else
+      number = 1; 
+  }
+  
+  // Open ROOT Files
+  char name[1000];
+  sprintf(name,"/Users/zach/Research/pythia/npeTemplate/%s.root",FileName);
+  TFile *f = new TFile(name,"READ");
+  if (f->IsOpen()==kFALSE)
+    { std::cout << "!!! File Not Found !!!" << std::endl;
+      exit(1); }
+  // f->ls(); // - DEBUG by printing all objects in ROOT file
+
+  char fname[100];
+  TFile* file;
+  if(makeROOT){
+    sprintf(fname,"/Users/zach/Research/pythia/npeTemplate/%s_processed.root",FileName);
+    file = new TFile(fname,"RECREATE");
+    if (file->IsOpen()==kFALSE)
+      {
+	std::cout << "!!! Outfile Not Opened !!!" << std::endl;
+	makeROOT = kFALSE;
+      }
+  }
+  
+  // Set constants and projection bins
+  const Int_t numPtBins = 14;
+  Float_t lowpt[14] ={2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.0};
+  Float_t highpt[14]={3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.,200.};
+  Float_t hptCut=0.5;
+
+  // Make Canvases
+  TCanvas* deltaPhi = new TCanvas("deltaPhi","Pythia Delta Phi",150,0,1150,1000);
+  deltaPhi->Divide(4,3);
+  char histName[100];
+  if(mode == 1)
+    sprintf(histName, "C");
+  if(mode == 2)
+    sprintf(histName, "B");
+  // Get Histos from run output
+  TH3F* mh3DelPhi;
+  TH2F* mh2npePt;
+  char hist[100];
+  sprintf(hist, "histo3D%s0", histName);
+  mh3delPhi    = (TH3F*)f->Get(hist);
+  sprintf(hist, "histos2D%s1", histName);
+  mh2npePt     = (TH2F*)f->Get(hist);
+  
+  // make pt projections
+  TH1D* projDelPhi[numPtBins];
+  TH1D* projNpeY[numPtBins];
+  
+  for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
+    {
+      projDelPhi[ptbin] = mh3delPhi->ProjectionZ(Form("projDelPhi_%i",ptbin),mh3delPhi->GetXaxis()->FindBin(lowpt[ptbin]),mh3delPhi->GetXaxis()->FindBin(highpt[ptbin]),mh3delPhi->GetYaxis()->FindBin(hptCut),-1);
+      projNpeY[ptbin]   = mh2npePt->ProjectionY(Form("projNpeY_%i",ptbin),mh2npePt->GetXaxis()->FindBin(lowpt[ptbin]),mh2npePt->GetXaxis()->FindBin(highpt[ptbin]));
+    }
+
+  // Draw histos
+  TPaveText* lbl[numPtBins];
+  char textLabel[100];
+  for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
+    {
+      // Init necessary plotting tools
+      lbl[ptbin] = new TPaveText(.2,.8,.5,.85,Form("NB NDC%i",ptbin));
+      sprintf(textLabel,"%.1f < P_{T,e} < %.1f",lowpt[ptbin],highpt[ptbin]);
+      lbl[ptbin]->AddText(textLabel);
+      lbl[ptbin]->SetFillColor(kWhite);
+      
+      // Calculate scaling Factor
+      Int_t Norm = projNpeY[ptbin]->GetEntries();
+      Double_t binWidth = projDelPhi[ptbin]->GetBinWidth(1);
+      binWidth = 1; // For comparing to previous work templates
+      deltaPhi->cd(ptbin+1);
+      deltaPhi->SetLogy(1);
+      projDelPhi[ptbin]->GetXaxis()->SetTitle("#Delta#phi_{eh}");
+      projDelPhi[ptbin]->Sumw2();
+      projDelPhi[ptbin]->Scale(1./((Double_t)Norm*binWidth));
+      projDelPhi[ptbin]->GetYaxis()->SetTitle("1/N_{NPE} #upoint dN/d(#Delta)#phi");
+      // projDelPhi[ptbin]->GetYaxis()->SetRangeUser(0,5);
+      if(ptbin == 0)
+	{
+	  if(mode == 1)
+	    projDelPhi[ptbin]->SetTitle("Pythia NPE-had #Delta#phi - Template not specified");
+	  if(mode == 1)
+	    projDelPhi[ptbin]->SetTitle("Pythia NPE-had #Delta#phi - c/#bar{c}");
+	  if(mode == 2)
+	    projDelPhi[ptbin]->SetTitle("Pythia NPE-had #Delta#phi - b/#bar{b}");
+	}
+      else
+	projDelPhi[ptbin]->SetTitle("");
+      if(ptbin < 13){
+	projDelPhi[ptbin]->Draw("E");
+	lbl[ptbin]->Draw("same");
+      }
+    }
+
+   // Make PDF with output canvases
+  if(makePDF)
+    {
+      //Set front page
+      TCanvas* fp = new TCanvas("fp","Front Page",100,0,1000,900);
+      fp->cd();
+      TBox *bLabel = new TBox(0.01, 0.88, 0.99, 0.99);
+      bLabel->SetFillColor(38);
+      bLabel->Draw();
+      TLatex tl;
+      tl.SetNDC();
+      tl.SetTextColor(kWhite);
+      tl.SetTextSize(0.033);
+      char tlName[100];
+      char tlName2[100];
+      
+      TString titlename = FileName;
+      int found = titlename.Last('/');
+      if(found >= 0){
+	titlename.Replace(0, found+1, "");
+      } 
+      sprintf(tlName, "RUN 12 NPE-h   #Delta#phi Pythia Templates");
+      tl.SetTextSize(0.05);
+      tl.SetTextColor(kWhite);
+      tl.DrawLatex(0.05, 0.92,tlName);
+      
+      TBox *bFoot = new TBox(0.01, 0.01, 0.99, 0.12);
+      bFoot->SetFillColor(38);
+      bFoot->Draw();
+      tl.SetTextColor(kWhite);
+      tl.SetTextSize(0.05);
+      tl.DrawLatex(0.05, 0.05, (new TDatime())->AsString());
+      tl.SetTextColor(kBlack);
+      tl.SetTextSize(0.03);
+      tl.DrawLatex(0.1, 0.14, titlename);
+      sprintf(tlName,"TEST");
+      tl.DrawLatex(0.1, 0.8,tlName);
+      
+      // Place canvases in order
+      TCanvas* temp = new TCanvas();
+      sprintf(name, "%s.pdf[", FileName);
+      temp->Print(name);
+      sprintf(name, "%s.pdf", FileName);
+      temp = fp; // print front page
+      temp->Print(name);
+      temp = deltaPhi;
+      temp->Print(name);
+      sprintf(name, "%s.pdf]", FileName);
+      temp->Print(name);
+    }
+
+  if(makeROOT)
+    {
+      file->Write();
+      file->Close();
+    }
+
+  // For making scripts to use in running online
+  /* char fName[100];
+  char temp[200];
+  for(Int_t ii=0;ii<50;ii++)
+    {
+      sprintf(fName, "script/run_C_%i.csh", ii);
+      std::ofstream outFile(fName,std::ofstream::out);
+      outFile << "#!/bin/csh" << endl << endl;
+      outFile << "source /star/u/zamiller/.cshrc" << endl;
+      outFile << "cd /star/u/zbtang/myTools/root/" << endl;
+      outFile << "source bin/thisroot.csh" << endl;
+      outFile << "cd /star/u/zamiller/simu/NPETemplates" << endl;
+      sprintf(temp, "./NPEHDelPhiCorr cards/NpeC_%i.cmnd output/NpeCHcorr_%i.root C",ii,ii);
+      outFile << temp << endl;
+      outFile.close();
+      }*/
+}
+      
