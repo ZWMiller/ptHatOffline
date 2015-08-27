@@ -1,0 +1,152 @@
+// Offline Plots - Z. Miller July 24, 2015
+//
+// .L offline.C
+// offline("FILENAME") # Without .root Extension
+
+void offline(const char* FileName="test")
+{
+   
+  // Set Style parameters for this macro
+  gStyle->SetOptTitle(1); // Show Title (off by default for cleanliness)
+  gErrorIgnoreLevel = kError; // Set Verbosity Level (kPrint shows all)
+  Bool_t fPaintAll = kFALSE;
+  Int_t number = 2;
+  while(number > 1 || number < 0){
+    std::cout << "Show all trigs? [default: 0]: ";
+    std::string input;
+    std::getline( std::cin, input );
+    if ( !input.empty() ) {
+      std::istringstream stream( input );
+      stream >> number;
+      if(number == 1)
+	fPaintAll=kTRUE;
+    }
+    else
+      number = 0;
+  }
+  // sets batch mode, so don't draw canvas
+  number = 2;
+  while(number > 1 || number < 0){
+    std::cout << "Batch Mode? [default: 1]: ";
+    std::string input;
+    std::getline( std::cin, input );
+    if ( !input.empty() ) {
+      std::istringstream stream( input );
+      stream >> number;
+      if(number == 0)
+	gROOT->SetBatch(kFALSE);
+      if(number == 1)
+	gROOT->SetBatch(kTRUE);
+    }
+    else
+      {
+	number = 1;
+	gROOT->SetBatch(kTRUE);
+      }
+  }
+
+    // Set option for pdf creation
+  number = 2; Bool_t makePDF = kTRUE;
+  while(number > 1 || number < 0){
+    std::cout << "Make PDF? [default: 1]: ";
+    std::string input;
+    std::getline( std::cin, input );
+    if ( !input.empty() ){
+      std::istringstream stream( input );
+      stream >> number;
+      if(number == 0)
+	makePDF = kFALSE;
+      if(number == 1)
+	makePDF = kTRUE;
+    }
+    else
+      number = 1; 
+  }
+  
+  // Open ROOT File
+  char name[1000];
+  sprintf(name,"/Users/zach/Research/pythia/npeTemplate/%s.root",FileName);
+  TFile *f = new TFile(name,"READ");
+  if (f->IsOpen()==kFALSE)
+    { std::cout << "!!! File Not Found !!!" << std::endl;
+      exit(1); }
+  // f->ls(); // - DEBUG by printing all objects in ROOT file
+  
+  // Set constants and projection bins
+  const Int_t numPtBins = 14;
+  Float_t lowpt[14] ={2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.0};
+  Float_t highpt[14]={3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.,200.};
+  Float_t hptCut=0.5;
+
+  // Make Canvases
+  TCanvas* deltaPhi = new TCanvas(Form("c%i",trig),"Pythia Delta Phi",150,0,1150,1000);
+
+  // Get Histos from run output
+  TH3F* mh3DelPhi;
+  mh3delPhi    = (TH3F*)f->Get("histos3DB0");
+
+  // make pt projections
+  TH1D* projDelPhi[numPtBins];
+  
+   for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
+      {
+	projDelPhi[ptbin] = mh3delPhi->ProjectionZ(Form("projDelPhi_%i",ptbin),mh3delPhi->GetXaxis()->FindBin(lowpt[ptbin]),mh3delPhi->GetXaxis()->FindBin(highpt[ptbin]),mh3DelPhiIncl[trig]->GetYaxis()->FindBin(hptCut),-1);
+
+	deltaPhi->cd(ptbin+1);
+	projDelPhi[ptbin]->GetXaxis()->SetTitle("#Delta#phi_{eh}");
+	projDelPhi[ptbin]->Draw();
+      }
+  
+
+   // Make PDF with output canvases
+  if(makePDF)
+    {
+      //Set front page
+      TCanvas* fp = new TCanvas("fp","Front Page",100,0,1000,900);
+      fp->cd();
+      TBox *bLabel = new TBox(0.01, 0.88, 0.99, 0.99);
+      bLabel->SetFillColor(38);
+      bLabel->Draw();
+      TLatex tl;
+      tl.SetNDC();
+      tl.SetTextColor(kWhite);
+      tl.SetTextSize(0.033);
+      char tlName[100];
+      char tlName2[100];
+      
+      TString titlename = FileName;
+      int found = titlename.Last('/');
+      if(found >= 0){
+	titlename.Replace(0, found+1, "");
+      } 
+      sprintf(tlName, "RUN 12 NPE-h #Delta#phi Pythia Templates");
+      tl.SetTextSize(0.05);
+      tl.SetTextColor(kWhite);
+      tl.DrawLatex(0.05, 0.92,tlName);
+      
+      TBox *bFoot = new TBox(0.01, 0.01, 0.99, 0.12);
+      bFoot->SetFillColor(38);
+      bFoot->Draw();
+      tl.SetTextColor(kWhite);
+      tl.SetTextSize(0.05);
+      tl.DrawLatex(0.05, 0.05, (new TDatime())->AsString());
+      tl.SetTextColor(kBlack);
+      tl.SetTextSize(0.03);
+      tl.DrawLatex(0.1, 0.14, titlename);
+      sprintf(tlName,"TEST");
+      tl.DrawLatex(0.1, 0.8,tlName);
+      
+      // Place canvases in order
+      TCanvas* temp = new TCanvas();
+      sprintf(name, "%s.pdf[", FileName);
+      temp->Print(name);
+      sprintf(name, "%s.pdf", FileName);
+      temp = fp; // print front page
+      temp->Print(name);
+      temp = deltaPhi;
+      temp->Print(name);
+      sprintf(name, "%s.pdf]", FileName);
+      temp->Print(name);
+    }
+}
+}

@@ -1,0 +1,62 @@
+// Offline Plots - Z. Miller July 24, 2015
+//
+// .L offline.C
+// offline("FILENAME") # Without .root Extension
+// takes output of offline.C (pythia version) as inputs.
+// Requires input from both a C and B data run with same name
+
+void plotTemplates(const char* FileName)
+{
+   char name[1000];
+  sprintf(name,"/Users/zach/Research/pythia/npeTemplate/%s_B_processed.root",FileName);
+  TFile *fB = new TFile(name,"READ");
+  sprintf(name,"/Users/zach/Research/pythia/npeTemplate/%s_C_processed.root",FileName);
+  TFile *fC = new TFile(name,"READ");
+  if (fB->IsOpen()==kFALSE || fC->IsOpen()==kFALSE)
+    { std::cout << "!!!!!! Either B or C File not found !!!!!!" << std::endl
+		<< "Enter base file name without '_B' or '_C'." << std::endl;
+      exit(1); }
+
+  // Set constants and projection bins
+  const Int_t numPtBins = 14;
+  Float_t lowpt[14] ={2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.0};
+  Float_t highpt[14]={3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.,200.};
+  Float_t hptCut=0.5;
+
+  // Make Canvases
+  TCanvas* deltaPhi = new TCanvas("deltaPhi","Pythia Delta Phi",150,0,1150,1000);
+  deltaPhi->Divide(4,3);
+
+  // Make histos
+  TH1D* projB[numPtBins];
+  TH1D* projC[numPtBins];
+
+  // Get and Draw histos
+  TPaveText* lbl[numPtBins];
+  char textLabel[100];
+
+  for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
+    {
+      // Init necessary plotting tools
+      lbl[ptbin] = new TPaveText(.2,.8,.5,.85,Form("NB NDC%i",ptbin));
+      sprintf(textLabel,"%.1f < P_{T,e} < %.1f",lowpt[ptbin],highpt[ptbin]);
+      lbl[ptbin]->AddText(textLabel);
+      lbl[ptbin]->SetFillColor(kWhite);
+
+      projB[ptbin] = (TH1D*)fB->Get(Form("projDelPhi_%i",ptbin));
+      projC[ptbin] = (TH1D*)fC->Get(Form("projDelPhi_%i",ptbin));
+
+      deltaPhi->cd(ptbin+1);
+      projB[ptbin]->SetLineColor(kRed);
+      projC[ptbin]->SetLineColor(kBlack);
+      projC[ptbin]->Draw();
+      projB[ptbin]->Draw("same");
+      lbl[ptbin]  ->Draw("same");
+
+      TLegend* leg = new TLegend(0.2,0.73,0.55,0.85);
+      leg->AddEntry(projB[ptbin],"b#bar{b}->NPE","lpe");
+      leg->AddEntry(projC[ptbin],"c#bar{c}->NPE","lpe");
+      leg->Draw();
+    }
+
+}
