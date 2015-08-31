@@ -4,12 +4,15 @@
 // offline("FILENAME") # Without .root Extension
 // modes: 0 = no ID about type of input, 1 = c/cbar, 2 = b/bbar
 
-void offline(const char* FileName="test", const Int_t mode=0)
+void offline(const char* FileName="test", Int_t mode = 0)
 {
-  if(mode == 0)
-    cout << endl << "No mode specified in offline('fileName',mode):" << endl
-	 << "mode 1: c/cbar; mode 2: b/bbar." << endl
-	 << "Running with mode set to undetermined" << endl << endl;
+  if (strcmp(FileName, "") == 0 || mode == 0 || mode > 2)
+    {
+      cout << "Error in input of offline('fileName',mode):" << endl
+	   << "mode 1: c/cbar; mode 2: b/bbar." << endl
+	   << "Need File Name: ''pythia_tree_Aug##_#''" << endl;
+      abort();
+    }
   
   // Set Style parameters for this macro
   //gStyle->SetOptTitle(1); // Show Title (off by default for cleanliness)
@@ -71,20 +74,18 @@ void offline(const char* FileName="test", const Int_t mode=0)
     else
       number = 1; 
   }
-  
-  // Open ROOT Files
-  char name[1000];
-  sprintf(name,"/Users/zach/Research/pythia/npeTemplate/%s.root",FileName);
-  TFile *f = new TFile(name,"READ");
-  if (f->IsOpen()==kFALSE)
-    { std::cout << "!!! File Not Found !!!" << std::endl;
-      exit(1); }
-  // f->ls(); // - DEBUG by printing all objects in ROOT file
+  // Use mode input to decide whether C or B templates to work on
+  char type[10] = "X";
+  if(mode == 1)
+    sprintf(type, "C");
+  if(mode == 2)
+    sprintf(type, "B");
 
+  // Open output file
   char fname[100];
   TFile* file;
   if(makeROOT){
-    sprintf(fname,"/Users/zach/Research/pythia/npeTemplate/%s_processed.root",FileName);
+    sprintf(fname,"/Users/zach/Research/pythia/ptHatTemplate/%s_processed.root",FileName);
     file = new TFile(fname,"RECREATE");
     if (file->IsOpen()==kFALSE)
       {
@@ -92,43 +93,103 @@ void offline(const char* FileName="test", const Int_t mode=0)
 	makeROOT = kFALSE;
       }
   }
-  
-  // Set constants and projection bins
+
+  // Initialize Histos for Summing and other global vars
+  const Int_t numPtHatBins = 8;
   const Int_t numPtBins = 14;
-  Float_t lowpt[14] ={2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.0};
-  Float_t highpt[14]={3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.,200.};
+
+  TH1F* ptHat     = new TH1F("pThat", "" ,150, 0, 15);
+  TH1F* ptHatCorr = new TH1F("pThatCorrected", "" ,150, 0, 15);
+  TH3F* mh3delPhi;
+  TH2F* mh2npePt;
+  TH1F* hStats;
+  TH2F* mh2ptHatPt;
+  TH1D* projpthatall;
+  char hist[100];
+  TH1F* delPhi[numPtBins];
+  TH1D* projDelPhi[numPtBins];
+  TH1D* projNpeY[numPtBins];
+  TH1D* projptHat[numPtBins];
+  for(Int_t ptbin=0; ptbin<numPtBins; ptbin++) // initialize all before the actual sorting
+    delPhi[ptbin]= new TH1F(Form("delPhi_%i",ptbin), "Delta Phi" ,200, -10, 10);
+  Float_t totalNorm[numPtBins]={0.};
+  Double_t wt=0.;
+   
+  Int_t pthatlow[numPtHatBins] = {0,1,2,4,8,16,32,64};
+  Int_t pthathigh[numPtHatBins]= {1,2,4,8,16,32,64,128};
+  Float_t lowpt[numPtBins]     = {2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.0};
+  Float_t highpt[numPtBins]    = {3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.,200.};
   Float_t hptCut=0.5;
 
   // Make Canvases
   TCanvas* deltaPhi = new TCanvas("deltaPhi","Pythia Delta Phi",150,0,1150,1000);
-  deltaPhi->Divide(4,3);
-  char histName[100];
-  if(mode == 1)
-    sprintf(histName, "C");
-  if(mode == 2)
-    sprintf(histName, "B");
-  // Get Histos from run output
-  TH3F* mh3DelPhi;
-  TH2F* mh2npePt;
-  char hist[100];
-  sprintf(hist, "histo3D%s0", histName);
-  mh3delPhi    = (TH3F*)f->Get(hist);
-  sprintf(hist, "histos2D%s1", histName);
-  mh2npePt     = (TH2F*)f->Get(hist);
-  
-  // make pt projections
-  TH1D* projDelPhi[numPtBins];
-  TH1D* projNpeY[numPtBins];
-  
-  for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
-    {
-      projDelPhi[ptbin] = mh3delPhi->ProjectionZ(Form("projDelPhi_%i",ptbin),mh3delPhi->GetXaxis()->FindBin(lowpt[ptbin]),mh3delPhi->GetXaxis()->FindBin(highpt[ptbin]),mh3delPhi->GetYaxis()->FindBin(hptCut),-1);
-      projNpeY[ptbin]   = mh2npePt->ProjectionY(Form("projNpeY_%i",ptbin),mh2npePt->GetXaxis()->FindBin(lowpt[ptbin]),mh2npePt->GetXaxis()->FindBin(highpt[ptbin]));
-    }
+  deltaPhi -> Divide(4,3);
+  TCanvas* ptHatC = new TCanvas("ptHatC","ptHat Stitching Comparison",150,0,1150,1000);
+  ptHatC   -> Divide(1,2);
 
-  // Draw histos
   TPaveText* lbl[numPtBins];
   char textLabel[100];
+  char name[1000];
+ 
+  // Loop over all ptHat bins
+  for(Int_t pthBin=0; pthBin < numPtHatBins; pthBin++)
+    {
+      
+      // Open ROOT File (example: output/pythia_tree_Aug31_1_C2_4.root)
+      sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/%s_%s%i_%i.root",FileName,type,pthatlow[pthBin],pthathigh[pthBin]); 
+      TFile *f = new TFile(name,"READ");
+      if (f->IsOpen()==kFALSE)
+	{ std::cout << "!!! File Not Found !!!" << std::endl;
+	  exit(1); }
+      else
+	{ cout << name << " is open!" << endl;}
+            
+      char histName[100];
+      // Get Histos from run output
+     
+      sprintf(hist, "histo3D%s0", type);
+      mh3delPhi    = (TH3F*)f->Get(hist);
+      sprintf(hist, "histos2D%s1", type);
+      mh2npePt     = (TH2F*)f->Get(hist);
+      sprintf(hist, "histos2D%s10", type);
+      mh2ptHatPt   = (TH2F*)f->Get(hist);
+      sprintf(hist, "hStatistics");
+      hStats       = (TH1F*)f->Get(hist);
+          
+      // Calculate Weight factors
+      wt = 1e9*1e-3*(hStats->GetBinContent(1)/hStats->GetBinContent(2)); // Taken from Zhenyu's method. The 1e# factors are luminosity(?) corrections?
+      projpthatall = mh2ptHatPt->ProjectionY("test",0,-1);
+      ptHat -> Add(projpthatall);
+      ptHatCorr -> Add(projpthatall,wt);
+   
+      // Analyze each ptH bin individually, adding to the overall hists
+      for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
+	{
+	  // DEBUGcout << "pthbin: " << pthBin << " ptbin: " << ptbin << endl;
+	  projDelPhi[ptbin] = mh3delPhi->ProjectionZ(Form("projDelPhi_%i",ptbin),mh3delPhi->GetXaxis()->FindBin(lowpt[ptbin]),mh3delPhi->GetXaxis()->FindBin(highpt[ptbin]),mh3delPhi->GetYaxis()->FindBin(hptCut),-1);
+	  projNpeY[ptbin]   = mh2npePt->ProjectionY(Form("projNpeY_%i",ptbin),mh2npePt->GetXaxis()->FindBin(lowpt[ptbin]),mh2npePt->GetXaxis()->FindBin(highpt[ptbin]));
+	  projptHat[ptbin]  = mh2ptHatPt->ProjectionY(Form("projPtHat_%i",ptbin),mh2ptHatPt->GetXaxis()->FindBin(lowpt[ptbin]),mh2ptHatPt->GetXaxis()->FindBin(highpt[ptbin]));
+	
+	  delPhi[ptbin] -> Add(projDelPhi[ptbin],wt);
+	  
+	  // Calculate scaling Factor
+	  Int_t Norm = projNpeY[ptbin]->GetEntries();
+	  totalNorm[ptbin] += Norm;
+	 
+	}
+    }
+
+  // For making plots
+
+  ptHatC->cd(1);
+  ptHat->GetXaxis()->SetTitle("pT-Hat (GeV/c)");
+  ptHat->SetTitle("Raw pT Hat");
+  ptHat->Draw();
+  ptHatC->cd(2);
+  ptHatCorr->GetXaxis()->SetTitle("pT-Hat (GeV/c)");
+  ptHatCorr->SetTitle("Weighted pT Hat");
+  ptHatCorr->Draw();
+  
   for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
     {
       // Init necessary plotting tools
@@ -136,36 +197,31 @@ void offline(const char* FileName="test", const Int_t mode=0)
       sprintf(textLabel,"%.1f < P_{T,e} < %.1f",lowpt[ptbin],highpt[ptbin]);
       lbl[ptbin]->AddText(textLabel);
       lbl[ptbin]->SetFillColor(kWhite);
-      
-      // Calculate scaling Factor
-      Int_t Norm = projNpeY[ptbin]->GetEntries();
-      Double_t binWidth = projDelPhi[ptbin]->GetBinWidth(1);
-      binWidth = 1; // For comparing to previous work templates
+
       deltaPhi->cd(ptbin+1);
-      deltaPhi->SetLogy(1);
-      projDelPhi[ptbin]->GetXaxis()->SetTitle("#Delta#phi_{eh}");
-      projDelPhi[ptbin]->Sumw2();
-      projDelPhi[ptbin]->Scale(1./((Double_t)Norm*binWidth));
-      projDelPhi[ptbin]->GetYaxis()->SetTitle("1/N_{NPE} #upoint dN/d(#Delta)#phi");
-      // projDelPhi[ptbin]->GetYaxis()->SetRangeUser(0,5);
+      delPhi[ptbin]->GetXaxis()->SetTitle("#Delta#phi_{eh}");
+      // delPhi[ptbin]->Sumw2();
+      //cout << totalNorm[ptbin] << endl;
+      delPhi[ptbin]->Scale(wt);
+      delPhi[ptbin]->GetYaxis()->SetTitle("1/N_{NPE} #upoint dN/d(#Delta)#phi");
+      delPhi[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
       if(ptbin == 0)
 	{
 	  if(mode == 1)
-	    projDelPhi[ptbin]->SetTitle("Pythia NPE-had #Delta#phi - Template not specified");
-	  if(mode == 1)
-	    projDelPhi[ptbin]->SetTitle("Pythia NPE-had #Delta#phi - c/#bar{c}");
+	    delPhi[ptbin]->SetTitle("Pythia NPE-had #Delta#phi - c/#bar{c}");
 	  if(mode == 2)
-	    projDelPhi[ptbin]->SetTitle("Pythia NPE-had #Delta#phi - b/#bar{b}");
+	    delPhi[ptbin]->SetTitle("Pythia NPE-had #Delta#phi - b/#bar{b}");
 	}
       else
-	projDelPhi[ptbin]->SetTitle("");
+	delPhi[ptbin]->SetTitle("");
       if(ptbin < 13){
-	projDelPhi[ptbin]->Draw("E");
+	delPhi[ptbin]->Draw("E");
 	lbl[ptbin]->Draw("same");
       }
     }
-
-   // Make PDF with output canvases
+  
+      
+  // Make PDF with output canvases
   if(makePDF)
     {
       //Set front page
@@ -209,6 +265,8 @@ void offline(const char* FileName="test", const Int_t mode=0)
       temp->Print(name);
       sprintf(name, "%s.pdf", FileName);
       temp = fp; // print front page
+      temp->Print(name);
+      temp = ptHatC;
       temp->Print(name);
       temp = deltaPhi;
       temp->Print(name);
