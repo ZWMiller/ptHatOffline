@@ -85,7 +85,7 @@ void offline(const char* FileName="test", Int_t mode = 0)
   char fname[100];
   TFile* file;
   if(makeROOT){
-    sprintf(fname,"/Users/zach/Research/pythia/ptHatTemplate/%s_processed.root",FileName);
+    sprintf(fname,"/Users/zach/Research/pythia/ptHatTemplate/%s_%s_processed.root",FileName,type);
     file = new TFile(fname,"RECREATE");
     if (file->IsOpen()==kFALSE)
       {
@@ -111,7 +111,9 @@ void offline(const char* FileName="test", Int_t mode = 0)
   TH1D* projNpeY[numPtBins];
   TH1D* projptHat[numPtBins];
   for(Int_t ptbin=0; ptbin<numPtBins; ptbin++) // initialize all before the actual sorting
-    delPhi[ptbin]= new TH1F(Form("delPhi_%i",ptbin), "Delta Phi" ,200, -10, 10);
+    { delPhi[ptbin]= new TH1F(Form("delPhi_%i",ptbin), "Delta Phi" ,200, -10, 10);
+      delPhi[ptbin]->Sumw2();
+    }
   Float_t totalNorm[numPtBins]={0.};
   Double_t wt=0.;
    
@@ -182,10 +184,12 @@ void offline(const char* FileName="test", Int_t mode = 0)
   // For making plots
 
   ptHatC->cd(1);
+  gPad-> SetLogy();
   ptHat->GetXaxis()->SetTitle("pT-Hat (GeV/c)");
   ptHat->SetTitle("Raw pT Hat");
   ptHat->Draw();
   ptHatC->cd(2);
+  gPad-> SetLogy();
   ptHatCorr->GetXaxis()->SetTitle("pT-Hat (GeV/c)");
   ptHatCorr->SetTitle("Weighted pT Hat");
   ptHatCorr->Draw();
@@ -200,9 +204,9 @@ void offline(const char* FileName="test", Int_t mode = 0)
 
       deltaPhi->cd(ptbin+1);
       delPhi[ptbin]->GetXaxis()->SetTitle("#Delta#phi_{eh}");
-      // delPhi[ptbin]->Sumw2();
+      delPhi[ptbin]->Sumw2();
       //cout << totalNorm[ptbin] << endl;
-      delPhi[ptbin]->Scale(wt);
+      //delPhi[ptbin]->Scale(wt);
       delPhi[ptbin]->GetYaxis()->SetTitle("1/N_{NPE} #upoint dN/d(#Delta)#phi");
       delPhi[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
       if(ptbin == 0)
