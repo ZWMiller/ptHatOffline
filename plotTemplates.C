@@ -5,32 +5,34 @@
 // takes output of offline.C (pythia version) as inputs.
 // Requires input from both a C and B data run with same name
 
-void plotTemplates(const char* FileName)
+// Plots templates for "currentC" and "currentB" files,
+// after offline has properly weighted them.
+
+void plotTemplates()
 {
    char name[1000];
-  sprintf(name,"/Users/zach/Research/pythia/npeTemplate/%s_B_processed.root",FileName);
-  TFile *fB = new TFile(name,"READ");
-  sprintf(name,"/Users/zach/Research/pythia/npeTemplate/%s_C_processed.root",FileName);
-  TFile *fC = new TFile(name,"READ");
-  if (fB->IsOpen()==kFALSE || fC->IsOpen()==kFALSE)
-    { std::cout << "!!!!!! Either B or C File not found !!!!!!" << std::endl
-		<< "Enter base file name without '_B' or '_C'." << std::endl
-		<< "Example: 'pythia_tree_Aug22'." << std::endl;
-      exit(1); }
-
-  // Set constants and projection bins
-  const Int_t numPtBins = 10;
-  Float_t lowpt[14] ={2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.0};
-  Float_t highpt[14]={3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.,200.};
-  Float_t hptCut=0.5;
-
-  // Make Canvases
-  TCanvas* deltaPhi = new TCanvas("deltaPhi","Pythia Delta Phi",150,0,1150,1000);
-  deltaPhi->Divide(4,3);
-
-  // Make histos
-  TH1D* projB[numPtBins];
-  TH1D* projC[numPtBins];
+   sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/outputs/currentB.root");
+   TFile *fB = new TFile(name,"READ");
+   sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/outputs/currentC.root");
+   TFile *fC = new TFile(name,"READ");
+   if (fB->IsOpen()==kFALSE || fC->IsOpen()==kFALSE)
+     { std::cout << "!!!!!! Either B or C File not found !!!!!!" << std::endl
+		 << "Looking for currentC.root and currentB.root." << std::endl
+	 exit(1); }
+   
+   // Set constants and projection bins
+   const Int_t numPtBins = 10;
+   Float_t lowpt[14] ={2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.0};
+   Float_t highpt[14]={3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.,200.};
+   Float_t hptCut=0.5;
+   
+   // Make Canvases
+   TCanvas* deltaPhi = new TCanvas("deltaPhi","Pythia Delta Phi",150,0,1150,1000);
+   deltaPhi->Divide(4,3);
+   
+   // Make histos
+   TH1D* projB[numPtBins];
+   TH1D* projC[numPtBins];
 
   // Get and Draw histos
   TPaveText* lbl[numPtBins];
@@ -44,15 +46,15 @@ void plotTemplates(const char* FileName)
       lbl[ptbin]->AddText(textLabel);
       lbl[ptbin]->SetFillColor(kWhite);
 
-      projB[ptbin] = (TH1D*)fB->Get(Form("projDelPhi_%i",ptbin));
-      projC[ptbin] = (TH1D*)fC->Get(Form("projDelPhi_%i",ptbin));
+      projB[ptbin] = (TH1D*)fB->Get(Form("delPhi_%i",ptbin));
+      projC[ptbin] = (TH1D*)fC->Get(Form("delPhi_%i",ptbin));
 
       deltaPhi->cd(ptbin+1);
       projB[ptbin]->SetLineColor(kRed);
       projC[ptbin]->SetLineColor(kBlack);
-      //      projC[ptbin]->GetYaxis()->SetRangeUser(0.,0.5);
-      projC[ptbin]->Draw();
-      projB[ptbin]->Draw("same");
+      //projC[ptbin]->GetYaxis()->SetRangeUser(0.,1.5);
+      projB[ptbin]->Draw();
+      projC[ptbin]->Draw("same");
       lbl[ptbin]  ->Draw("same");
 
       TLegend* leg = new TLegend(0.5,0.73,0.85,0.85);
