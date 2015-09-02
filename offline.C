@@ -108,6 +108,7 @@ void offline(const char* FileName="test", Int_t mode = 0)
   TH1D* projpthatall;
   char hist[100];
   TH1F* delPhi[numPtBins];
+  TH1F* ptNorm;
   TH1D* projDelPhi[numPtBins];
   TH1D* projNpeY[numPtBins];
   TH1D* projptHat[numPtBins];
@@ -115,6 +116,9 @@ void offline(const char* FileName="test", Int_t mode = 0)
     { delPhi[ptbin]= new TH1F(Form("delPhi_%i",ptbin), "Delta Phi" ,200, -10, 10);
       delPhi[ptbin]->Sumw2();
     }
+  ptNorm = new TH1F("ptNorm", "pT Norm" ,200, 0, 20);
+  ptNorm ->Sumw2();
+      
   Float_t totalNorm[numPtBins]={0.};
   Double_t wt=0.;
    
@@ -177,6 +181,7 @@ void offline(const char* FileName="test", Int_t mode = 0)
 	  
 	  // Calculate scaling Factor
 	  Int_t Norm = projNpeY[ptbin]->GetEntries();
+	  ptNorm->SetBinContent(ptNorm->GetBin(ptbin+1),Norm);
 	  totalNorm[ptbin] += Norm;
 	 
 	}

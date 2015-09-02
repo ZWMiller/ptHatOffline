@@ -51,6 +51,8 @@ void fractionFit()
   TH1D* projData2[numPtBins];
   TH1D* combData[numPtBins];
   TH1F* histoNorms;
+  TH1F* bPtNorms;
+  TH1F* cPtNorms;
   
   // Get and Draw histos
   TPaveText* lbl[numPtBins];
@@ -62,6 +64,8 @@ void fractionFit()
 
   // Get ptbin independent hists
   histoNorms = (TH1F*)fD->Get("histoNorms");
+  bPtNorms   = (TH1F*)fB->Get("ptNorm");
+  cPtNorms   = (TH1F*)fC->Get("ptNorm");
 
   for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
     {
