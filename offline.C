@@ -1,7 +1,8 @@
-// Offline Plots - Z. Miller August 15, 2015
+// Offline Plots - Z. Miller Sep 1, 2015 
+// Updated to take ptHatBin Pythia Output
 //
 // .L offline.C
-// offline("FILENAME") # Without .root Extension
+// offline("FILENAME", mode) # Without .root Extension
 // modes: 0 = no ID about type of input, 1 = c/cbar, 2 = b/bbar
 
 void offline(const char* FileName="test", Int_t mode = 0)
@@ -98,8 +99,8 @@ void offline(const char* FileName="test", Int_t mode = 0)
   const Int_t numPtHatBins = 8;
   const Int_t numPtBins = 14;
 
-  TH1F* ptHat     = new TH1F("pThat", "" ,150, 0, 15);
-  TH1F* ptHatCorr = new TH1F("pThatCorrected", "" ,150, 0, 15);
+  TH1F* ptHat     = new TH1F("pThat", "" ,1500, 0, 150);
+  TH1F* ptHatCorr = new TH1F("pThatCorrected", "" ,1500, 0, 150);
   TH3F* mh3delPhi;
   TH2F* mh2npePt;
   TH1F* hStats;

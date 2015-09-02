@@ -1,4 +1,4 @@
-// Offline Plots - Z. Miller July 24, 2015
+// Fraction Fit - Z. Miller Sep 1, 2015
 //
 // .L fractionFit.C
 // fractionFit() 
@@ -29,6 +29,7 @@ void fractionFit()
   Double_t e00[numPtBins],e01[numPtBins],e20[numPtBins],e21[numPtBins];
   Double_t pC0[numPtBins],pC1[numPtBins],eC0[numPtBins],eC1[numPtBins];
   Double_t Rb0[numPtBins],Rb2[numPtBins],RbC[numPtBins],pT[numPtBins];
+  Double_t eb0[numPtBins],eb2[numPtBins],ebC[numPtBins],dx[numPtBins];
   Int_t rangeLow = 23; //45 for no extra rebin
   Int_t rangeHigh = 28; //56
   
@@ -49,6 +50,7 @@ void fractionFit()
   TH1D* projData0[numPtBins];
   TH1D* projData2[numPtBins];
   TH1D* combData[numPtBins];
+  TH1F* histoNorms;
   
   // Get and Draw histos
   TPaveText* lbl[numPtBins];
@@ -56,9 +58,15 @@ void fractionFit()
   char statLabel[100];
   char textLabel[100];
   Int_t plotbin;
+  Float_t norm0,norm2;
+
+  // Get ptbin independent hists
+  histoNorms = (TH1F*)fD->Get("histoNorms");
 
   for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
     {
+      norm0 = histoNorms->GetBinContent(histoNorms->GetBin(1,ptbin+1));
+      norm2 = histoNorms->GetBinContent(histoNorms->GetBin(3,ptbin+1));
       plotbin = ptbin;
       // Init necessary plotting tools
       lbl[ptbin] = new TPaveText(.25,.8,.5,.88,Form("NB NDC%i",ptbin));
@@ -85,7 +93,7 @@ void fractionFit()
       projData2[ptbin]->SetLineColor(kGreen+3);
       projB[ptbin]->SetLineColor(kRed);
       projC[ptbin]->SetLineColor(kBlack);
-      projC[ptbin]->GetYaxis()->SetRangeUser(0.,1.);
+      // projC[ptbin]->GetYaxis()->SetRangeUser(0.,1.);
       projC[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
       projC[ptbin]    -> Draw();
       projB[ptbin]    -> Draw("same");
@@ -117,7 +125,7 @@ void fractionFit()
       if (status == 0) {                       // check on fit status
 	TH1F* result = (TH1F*) fit->GetPlot();
 	projData0[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
-	projData0[ptbin]->GetYaxis()->SetRangeUser(0,1);
+	//projData0[ptbin]->GetYaxis()->SetRangeUser(0,1);
 	projData0[ptbin]->Draw("Ep");
 	result->SetLineColor(kBlack);
 	result->SetFillColor(kWhite);
@@ -127,10 +135,12 @@ void fractionFit()
 	fit->GetResult(1,p01[ptbin],e01[ptbin]);
 	Double_t chi2 = fit->GetChisquare();
 	Int_t ndf = fit->GetNDF();
-	stat[0][ptbin] = new TPaveText(.25,.65,.75,.8,Form("NB NDC%i",ptbin));
-	sprintf(statLabel,"Chi2/NDF: %f/%i",chi2,ndf);
+	stat[0][ptbin] = new TPaveText(.25,.6,.75,.8,Form("NB NDC%i",ptbin));
+	sprintf(statLabel,"Chi2: %f",chi2);
 	stat[0][ptbin]->InsertText(statLabel);
-	sprintf(statLabel,"p0: %f; p1: %f",p00[ptbin],p01[ptbin]);
+	sprintf(statLabel,"Rc: %f; Rb: %f",p00[ptbin],p01[ptbin]);
+	stat[0][ptbin]->InsertText(statLabel);
+	sprintf(statLabel,"eC: %f; eB: %f",e00[ptbin],e01[ptbin]);
 	stat[0][ptbin]->InsertText(statLabel);
 	stat[0][ptbin]->SetFillColor(kWhite);
 	stat[0][ptbin]->Draw("same");
@@ -147,7 +157,7 @@ void fractionFit()
       if (status2 == 0) {                       // check on fit status
 	TH1F* result2 = (TH1F*) fit2->GetPlot();
 	projData2[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
-	projData2[ptbin]->GetYaxis()->SetRangeUser(0,1);
+	//projData2[ptbin]->GetYaxis()->SetRangeUser(0,1);
 	projData2[ptbin]->Draw("Ep");
 	result2->SetLineColor(kBlack);
 	result2->SetFillColor(kWhite);
@@ -157,10 +167,12 @@ void fractionFit()
 	fit2->GetResult(1,p21[ptbin],e21[ptbin]);
 	Double_t chi2 = fit2->GetChisquare();
 	Int_t ndf = fit2->GetNDF();
-	stat[1][ptbin] = new TPaveText(.25,.65,.75,.8,Form("NB NDC%i",ptbin));
-	sprintf(statLabel,"Chi2/NDF: %f/%i",chi2,ndf);
+	stat[1][ptbin] = new TPaveText(.25,.6,.75,.8,Form("NB NDC%i",ptbin));
+	sprintf(statLabel,"Chi2: %f",chi2);
 	stat[1][ptbin]->InsertText(statLabel);
-	sprintf(statLabel,"p0: %f; p1: %f",p20[ptbin],p21[ptbin]);
+	sprintf(statLabel,"Rc: %f; Rb: %f",p20[ptbin],p21[ptbin]);
+	stat[1][ptbin]->InsertText(statLabel);
+	sprintf(statLabel,"eC: %f; eB: %f",e20[ptbin],e21[ptbin]);
 	stat[1][ptbin]->InsertText(statLabel);
 	stat[1][ptbin]->SetFillColor(kWhite);
 	stat[1][ptbin]->Draw("same");
@@ -176,7 +188,7 @@ void fractionFit()
       if (statusC == 0) {                       // check on fit status
 	TH1F* resultC = (TH1F*) fitC->GetPlot();
 	combData[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
-	combData[ptbin]->GetYaxis()->SetRangeUser(0,1);
+	//combData[ptbin]->GetYaxis()->SetRangeUser(0,1);
 	combData[ptbin]->SetTitle("");
 	combData[ptbin]->Draw("Ep");
 	resultC->SetLineColor(kBlack);
@@ -187,25 +199,32 @@ void fractionFit()
 	fitC->GetResult(1,pC1[ptbin],eC1[ptbin]);
 	Double_t chi2 = fitC->GetChisquare();
 	Int_t ndf = fitC->GetNDF();
-	stat[2][ptbin] = new TPaveText(.25,.65,.75,.8,Form("NB NDC%i",ptbin));
-	sprintf(statLabel,"Chi2/NDF: %f/%i",chi2,ndf);
+	stat[2][ptbin] = new TPaveText(.25,.6,.75,.8,Form("NB NDC%i",ptbin));
+	sprintf(statLabel,"Chi2: %f",chi2);
 	stat[2][ptbin]->InsertText(statLabel);
-	sprintf(statLabel,"p0: %f; p1: %f",pC0[ptbin],pC1[ptbin]);
+	sprintf(statLabel,"Rc: %f; Rb: %f",pC0[ptbin],pC1[ptbin]);
+	stat[2][ptbin]->InsertText(statLabel);
+	sprintf(statLabel,"ec: %f; eb: %f",eC0[ptbin],eC1[ptbin]);
 	stat[2][ptbin]->InsertText(statLabel);
 	stat[2][ptbin]->SetFillColor(kWhite);
 	stat[2][ptbin]->Draw("same");
       }
 
       pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
+      dx[ptbin] = 0;
       Rb0[ptbin] = p01[ptbin]/(p01[ptbin]+p00[ptbin]);
       Rb2[ptbin] = p21[ptbin]/(p21[ptbin]+p20[ptbin]);
       RbC[ptbin] = pC1[ptbin]/(pC1[ptbin]+pC0[ptbin]);
 
+      eb0[ptbin] = sqrt(pow((p00[ptbin]/pow((p00[ptbin]+p01[ptbin]),2)*e00[ptbin]),2)+pow((p01[ptbin]/pow((p00[ptbin]+p01[ptbin]),2)*e01[ptbin]),2));
+      eb2[ptbin] = sqrt(pow((p20[ptbin]/pow((p20[ptbin]+p21[ptbin]),2)*e20[ptbin]),2)+pow((p21[ptbin]/pow((p20[ptbin]+p21[ptbin]),2)*e21[ptbin]),2));
+      ebC[ptbin] = sqrt(pow((pC0[ptbin]/pow((pC0[ptbin]+pC1[ptbin]),2)*eC0[ptbin]),2)+pow((pC1[ptbin]/pow((pC0[ptbin]+pC1[ptbin]),2)*eC1[ptbin]),2));
+      
     }
   TCanvas* c1 = new TCanvas("c1","Bottom Contribution",150,0,1150,1000);
-  TGraphErrors *gr0  = new TGraphErrors(numPtBins,pT,Rb0);
-  TGraphErrors *gr2  = new TGraphErrors(numPtBins,pT,Rb2);
-  TGraphErrors *grC  = new TGraphErrors(numPtBins,pT,RbC);
+  TGraphErrors *gr0  = new TGraphErrors(numPtBins,pT,Rb0,dx,eb0);
+  TGraphErrors *gr2  = new TGraphErrors(numPtBins,pT,Rb2,dx,eb2);
+  TGraphErrors *grC  = new TGraphErrors(numPtBins,pT,RbC,dx,ebC);
   c1->cd(1);
 
   gr0->SetTitle("Bottom Contribution");
@@ -228,12 +247,12 @@ void fractionFit()
   
   gr0->Draw("AP");
   gr2->Draw("same P");
-  grC->Draw("same P");
+  // grC->Draw("same P");
 
   TLegend* leg2 = new TLegend(0.15,0.73,0.35,0.85);
   leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
   leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
-  leg2->AddEntry(grC,"Combined Trigs","pe");
+  // leg2->AddEntry(grC,"Combined Trigs","pe");
   leg2->Draw("same");
   
   
