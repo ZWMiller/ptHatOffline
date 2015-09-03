@@ -19,7 +19,7 @@ void plotTemplates()
    TFile *fC = new TFile(name,"READ");
    if (fB->IsOpen()==kFALSE || fC->IsOpen()==kFALSE)
      { std::cout << "!!!!!! Either B or C File not found !!!!!!" << std::endl
-		 << "Looking for currentC.root and currentB.root." << std::endl
+		 << "Looking for currentC.root and currentB.root." << std::endl;
 	 exit(1); }
    
    // Set constants and projection bins

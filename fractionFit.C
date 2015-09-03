@@ -36,8 +36,9 @@ void fractionFit()
   Double_t pC0[numPtBins],pC1[numPtBins],eC0[numPtBins],eC1[numPtBins];
   Double_t Rb0[numPtBins],Rb2[numPtBins],RbC[numPtBins],pT[numPtBins];
   Double_t eb0[numPtBins],eb2[numPtBins],ebC[numPtBins],dx[numPtBins];
-  Int_t rangeLow = 23; //23 for  extra rebin
-  Int_t rangeHigh = 28; //28
+  Double_t ptOFF1[numPtBins],ptOFF2[numPtBins];
+  Int_t rangeLow = 22; //22 for  extra rebin
+  Int_t rangeHigh = 29; //29
   
 
   // Make Canvases
@@ -73,7 +74,7 @@ void fractionFit()
   bPtNorms   = (TH1F*)fB->Get("ptNorm");
   cPtNorms   = (TH1F*)fC->Get("ptNorm");
 
-  for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
+  for(Int_t ptbin=0; ptbin<7; ptbin++)
     {
       norm0 = histoNorms->GetBinContent(histoNorms->GetBin(1,ptbin+1));
       norm2 = histoNorms->GetBinContent(histoNorms->GetBin(3,ptbin+1));
@@ -91,7 +92,7 @@ void fractionFit()
       Int_t RB = 2;
       projB[ptbin]->Rebin(RB);
       projC[ptbin]->Rebin(RB);
-      Int_t RB2 = 2;
+      Int_t RB2 = 1;
       projB[ptbin]->Rebin(RB);
       projC[ptbin]->Rebin(RB);
       projData0[ptbin]->Rebin(RB);
@@ -128,6 +129,7 @@ void fractionFit()
 
       fitResult0->cd(ptbin+1);
       TFractionFitter* fit = new TFractionFitter(projData0[ptbin], mc,"V"); // initialise
+      fit->Constrain(0,0.0,1.0);
       fit->Constrain(1,0.0,1.0);               // constrain fraction 1 to be between 0 and 1
       fit->SetRangeX(rangeLow,rangeHigh);      // use only the first 15 bins in the fit
       Int_t status = fit->Fit();               // perform the fit
@@ -190,8 +192,8 @@ void fractionFit()
 
       fitResultC->cd(ptbin+1);
       TFractionFitter* fitC = new TFractionFitter(combData[ptbin], mc); // initialise
-      //   fitC->Constrain(0,0.0,1.0);              // constrain fraction 0
-      //fitC->Constrain(1,0.0,1.0);              // constrain fraction 1 to be between 0 and 1
+      fitC->Constrain(0,0.0,1.0);              // constrain fraction 0
+      fitC->Constrain(1,0.0,1.0);              // constrain fraction 1 to be between 0 and 1
       fitC->SetRangeX(rangeLow,rangeHigh);     // use only the first 15 bins in the fit
       Int_t statusC = fitC->Fit();             // perform the fit
       std::cout << "fit status: " << statusC << std::endl;
@@ -221,6 +223,8 @@ void fractionFit()
       }
 
       pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
+      ptOFF1[ptbin] = pT[ptbin]+0.1;
+      ptOFF2[ptbin] = pT[ptbin]-0.1;
       dx[ptbin] = 0;
       Rb0[ptbin] = p01[ptbin]/(p01[ptbin]+p00[ptbin]);
       Rb2[ptbin] = p21[ptbin]/(p21[ptbin]+p20[ptbin]);
@@ -258,8 +262,8 @@ void fractionFit()
   fp1.close();
   
   TCanvas* c1 = new TCanvas("c1","Bottom Contribution",150,0,1150,1000);
-  TGraphErrors *gr0     = new TGraphErrors(numPtBins,pT,Rb0,dx,eb0);
-  TGraphErrors *gr2     = new TGraphErrors(numPtBins,pT,Rb2,dx,eb2);
+  TGraphErrors *gr0     = new TGraphErrors(numPtBins,ptOFF2,Rb0,dx,eb0);
+  TGraphErrors *gr2     = new TGraphErrors(numPtBins,ptOFF1,Rb2,dx,eb2);
   TGraphErrors *grC     = new TGraphErrors(numPtBins,pT,RbC,dx,ebC);
   TGraphErrors *grF     = new TGraphErrors(l-1,xF,yF);
   TGraphErrors *grFmax  = new TGraphErrors(l-1,xF,maxF);
@@ -299,11 +303,12 @@ void fractionFit()
   grFmin->Draw("same");
   grP->Draw("same P");
 
-  TLegend* leg2 = new TLegend(0.15,0.73,0.35,0.85);
+  TLegend* leg2 = new TLegend(0.15,0.68,0.4,0.85);
   leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
   leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
   leg2->AddEntry(grC,"Combined Trigs","pe");
-  leg2->AddEntry(grF,"FONLL (Stat Err. Only)","l");
+  leg2->AddEntry(grF,"FONLL (Uncertainty: Scale Only)","l");
+  leg2->AddEntry(grP,"Run 5/6 Analysis (Stat Uncertainty)","pe");
   leg2->Draw("same");
   
   
