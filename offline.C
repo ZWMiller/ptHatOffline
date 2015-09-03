@@ -5,6 +5,8 @@
 // offline("FILENAME", mode) # Without .root Extension
 // modes: 0 = no ID about type of input, 1 = c/cbar, 2 = b/bbar
 
+#include "anaConst.h"
+
 void offline(const char* FileName="test", Int_t mode = 0)
 {
   if (strcmp(FileName, "") == 0 || mode == 0 || mode > 2)
@@ -97,7 +99,13 @@ void offline(const char* FileName="test", Int_t mode = 0)
 
   // Initialize Histos for Summing and other global vars
   const Int_t numPtHatBins = 8;
-  const Int_t numPtBins = 14;
+  const Int_t numPtBins = anaConst::nPtBins;
+  Float_t lowpt[numPtBins],highpt[numPtBins];
+  for(Int_t c=0; c< numPtBins; c++){
+    lowpt[c] = anaConst::lpt[c];
+    highpt[c] = anaConst::hpt[c];
+  }
+  Float_t hptCut=anaConst::hptCut;
 
   TH1F* ptHat     = new TH1F("pThat", "" ,1500, 0, 150);
   TH1F* ptHatCorr = new TH1F("pThatCorrected", "" ,1500, 0, 150);
@@ -124,9 +132,6 @@ void offline(const char* FileName="test", Int_t mode = 0)
    
   Int_t pthatlow[numPtHatBins] = {0,1,2,4,8,16,32,64};
   Int_t pthathigh[numPtHatBins]= {1,2,4,8,16,32,64,128};
-  Float_t lowpt[numPtBins]     = {2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.0};
-  Float_t highpt[numPtBins]    = {3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.,200.};
-  Float_t hptCut=0.5;
 
   // Make Canvases
   TCanvas* deltaPhi = new TCanvas("deltaPhi","Pythia Delta Phi",150,0,1150,1000);

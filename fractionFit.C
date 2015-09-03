@@ -5,8 +5,11 @@
 // takes output of offline.C (pythia version, and data version) as inputs.
 // Copy current best data and templates as "current%s.root" {B,C,Data}
 
+#include "anaConst.h"
+
 void fractionFit()
 {
+  
   gStyle->SetOptFit(1111);
   char name[1000];
   sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/outputs/currentB.root");
@@ -20,18 +23,21 @@ void fractionFit()
 		<< "Looking for currentB.root, currentC.root, and currentData.root" << std::endl;
       exit(1); }
   
-  // Set constants and projection bins
-  const Int_t numPtBins = 12;
-  Float_t lowpt[14] ={2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.0};
-  Float_t highpt[14]={3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.5,10.,14.,200.};
-  Float_t hptCut=0.5;
+  // Set constants and projection bins (from header file anaConst, analysis constants)
+  const Int_t numPtBins = anaConst::nPtBins;
+  Float_t lowpt[numPtBins],highpt[numPtBins];
+  for(Int_t c=0; c< numPtBins; c++){
+    lowpt[c] = anaConst::lpt[c];
+    highpt[c] = anaConst::hpt[c];
+  }
+  Float_t hptCut=anaConst::hptCut;
   Double_t p00[numPtBins],p01[numPtBins],p20[numPtBins],p21[numPtBins];
   Double_t e00[numPtBins],e01[numPtBins],e20[numPtBins],e21[numPtBins];
   Double_t pC0[numPtBins],pC1[numPtBins],eC0[numPtBins],eC1[numPtBins];
   Double_t Rb0[numPtBins],Rb2[numPtBins],RbC[numPtBins],pT[numPtBins];
   Double_t eb0[numPtBins],eb2[numPtBins],ebC[numPtBins],dx[numPtBins];
-  Int_t rangeLow = 23; //45 for no extra rebin
-  Int_t rangeHigh = 28; //56
+  Int_t rangeLow = 23; //23 for  extra rebin
+  Int_t rangeHigh = 28; //28
   
 
   // Make Canvases
@@ -113,7 +119,7 @@ void fractionFit()
       leg->Draw();
 
       combData[ptbin] = (TH1D*) projData0[ptbin]->Clone();
-      combData[ptbin]->Add(projData2[ptbin]);
+      combData[ptbin] -> Add(projData2[ptbin]);
 
       // Do the actual fit
       TObjArray *mc = new TObjArray(2);   // MC histograms are put in this array
@@ -184,8 +190,8 @@ void fractionFit()
 
       fitResultC->cd(ptbin+1);
       TFractionFitter* fitC = new TFractionFitter(combData[ptbin], mc); // initialise
-      fitC->Constrain(0,0.0,1.0);              // constrain fraction 0
-      fitC->Constrain(1,0.0,1.0);              // constrain fraction 1 to be between 0 and 1
+      //   fitC->Constrain(0,0.0,1.0);              // constrain fraction 0
+      //fitC->Constrain(1,0.0,1.0);              // constrain fraction 1 to be between 0 and 1
       fitC->SetRangeX(rangeLow,rangeHigh);     // use only the first 15 bins in the fit
       Int_t statusC = fitC->Fit();             // perform the fit
       std::cout << "fit status: " << statusC << std::endl;
@@ -225,10 +231,41 @@ void fractionFit()
       ebC[ptbin] = sqrt(pow((pC0[ptbin]/pow((pC0[ptbin]+pC1[ptbin]),2)*eC0[ptbin]),2)+pow((pC1[ptbin]/pow((pC0[ptbin]+pC1[ptbin]),2)*eC1[ptbin]),2));
       
     }
+
+  // Get FONLL Calc
+  Int_t l=0;
+  char line[1000];
+  Float_t xF[100],yF[100],minF[100],maxF[100];
+  ifstream fp("/Users/zach/Research/pythia/ptHatTemplate/FONLL.txt",ios::in);
+  while (!fp.eof()){
+    fp.getline(line,1000);
+    sscanf(line,"%f %f %f %f",&xF[l],&yF[l],&minF[l],&maxF[l]);
+    //  printf("L: %f %f\n",xF[l],yF[l]);
+    l++;
+  }
+  fp.close();
+
+  // Get Previous Analysis 
+  Int_t p=0;
+  Float_t xP[100],yP[100],dyP[100];
+  ifstream fp1("/Users/zach/Research/pythia/ptHatTemplate/run5_6.txt",ios::in);
+  while (!fp1.eof()){
+    fp1.getline(line,1000);
+    sscanf(line,"%f %f %f",&xP[p],&yP[p],&dyP[p]);
+    // printf("L: %f %f\n",xF[l],yF[l]);
+    p++;
+  }
+  fp1.close();
+  
   TCanvas* c1 = new TCanvas("c1","Bottom Contribution",150,0,1150,1000);
-  TGraphErrors *gr0  = new TGraphErrors(numPtBins,pT,Rb0,dx,eb0);
-  TGraphErrors *gr2  = new TGraphErrors(numPtBins,pT,Rb2,dx,eb2);
-  TGraphErrors *grC  = new TGraphErrors(numPtBins,pT,RbC,dx,ebC);
+  TGraphErrors *gr0     = new TGraphErrors(numPtBins,pT,Rb0,dx,eb0);
+  TGraphErrors *gr2     = new TGraphErrors(numPtBins,pT,Rb2,dx,eb2);
+  TGraphErrors *grC     = new TGraphErrors(numPtBins,pT,RbC,dx,ebC);
+  TGraphErrors *grF     = new TGraphErrors(l-1,xF,yF);
+  TGraphErrors *grFmax  = new TGraphErrors(l-1,xF,maxF);
+  TGraphErrors *grFmin  = new TGraphErrors(l-1,xF,minF);
+  TGraphErrors *grP     = new TGraphErrors(p-1,xP,yP,0,dyP);
+
   c1->cd(1);
 
   gr0->SetTitle("Bottom Contribution");
@@ -248,15 +285,25 @@ void fractionFit()
   grC->SetMarkerSize(1);
   grC->SetLineColor(kRed);
   grC->SetMarkerColor(kRed);
+  grF->SetLineStyle(1);
+  grFmax->SetLineStyle(2);
+  grFmin->SetLineStyle(2);
+  grP->SetMarkerStyle(33);
+  grP->SetMarkerColor(kBlack);
   
   gr0->Draw("AP");
   gr2->Draw("same P");
-  // grC->Draw("same P");
+  grC->Draw("same P");
+  grF->Draw("same");
+  grFmax->Draw("same");
+  grFmin->Draw("same");
+  grP->Draw("same P");
 
   TLegend* leg2 = new TLegend(0.15,0.73,0.35,0.85);
   leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
   leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
-  // leg2->AddEntry(grC,"Combined Trigs","pe");
+  leg2->AddEntry(grC,"Combined Trigs","pe");
+  leg2->AddEntry(grF,"FONLL (Stat Err. Only)","l");
   leg2->Draw("same");
   
   
