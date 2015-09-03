@@ -7,6 +7,12 @@
 
 #include "anaConst.h"
 
+// Declare functions
+void checkBatchMode();
+Bool_t checkMakePDF();
+Bool_t checkMakeRoot();
+
+
 void offline(const char* FileName="test", Int_t mode = 0)
 {
   if (strcmp(FileName, "") == 0 || mode == 0 || mode > 2)
@@ -20,63 +26,13 @@ void offline(const char* FileName="test", Int_t mode = 0)
   // Set Style parameters for this macro
   //gStyle->SetOptTitle(1); // Show Title (off by default for cleanliness)
   gErrorIgnoreLevel = kError; // Set Verbosity Level (kPrint shows all)
-  // sets batch mode, so don't draw canvas
-  number = 2;
-  while(number > 1 || number < 0){
-    std::cout << "Batch Mode? [default: 1]: ";
-    std::string input;
-    std::getline( std::cin, input );
-    if ( !input.empty() ) {
-      std::istringstream stream( input );
-      stream >> number;
-      if(number == 0)
-	gROOT->SetBatch(kFALSE);
-      if(number == 1)
-	gROOT->SetBatch(kTRUE);
-    }
-    else
-      {
-	number = 1;
-	gROOT->SetBatch(kTRUE);
-      }
-  }
 
-    // Set option for pdf creation
-  number = 2; Bool_t makePDF = kTRUE;
-  while(number > 1 || number < 0){
-    std::cout << "Make PDF? [default: 1]: ";
-    std::string input;
-    std::getline( std::cin, input );
-    if ( !input.empty() ){
-      std::istringstream stream( input );
-      stream >> number;
-      if(number == 0)
-	makePDF = kFALSE;
-      if(number == 1)
-	makePDF = kTRUE;
-    }
-    else
-      number = 1; 
-  }
+   // Set Output options
+  Int_t number;
+  checkBatchMode();
+  Bool_t makePDF = checkMakePDF();
+  Bool_t makeROOT= checkMakeRoot();
 
-     // Set option for .root creation
-  number = 2; Bool_t makeROOT = kTRUE;
-  while(number > 1 || number < 0){
-    std::cout << "Make .root? [default: 1]: ";
-    std::string input;
-    std::getline( std::cin, input );
-    if ( !input.empty() ){
-      std::istringstream stream( input );
-      stream >> number;
-      if(number == 0)
-	makeROOT = kFALSE;
-      if(number == 1){
-	makeROOT = kTRUE;
-      }
-    }
-    else
-      number = 1; 
-  }
   // Use mode input to decide whether C or B templates to work on
   char type[10] = "X";
   if(mode == 1)
@@ -294,22 +250,74 @@ void offline(const char* FileName="test", Int_t mode = 0)
       file->Write();
       file->Close();
     }
-
-  // For making scripts to use in running online
-  /* char fName[100];
-  char temp[200];
-  for(Int_t ii=0;ii<50;ii++)
-    {
-      sprintf(fName, "script/run_C_%i.csh", ii);
-      std::ofstream outFile(fName,std::ofstream::out);
-      outFile << "#!/bin/csh" << endl << endl;
-      outFile << "source /star/u/zamiller/.cshrc" << endl;
-      outFile << "cd /star/u/zbtang/myTools/root/" << endl;
-      outFile << "source bin/thisroot.csh" << endl;
-      outFile << "cd /star/u/zamiller/simu/NPETemplates" << endl;
-      sprintf(temp, "./NPEHDelPhiCorr cards/NpeC_%i.cmnd output/NpeCHcorr_%i.root C",ii,ii);
-      outFile << temp << endl;
-      outFile.close();
-      }*/
 }
-      
+
+void checkBatchMode(){
+
+ // sets batch mode, so don't draw canvas
+  Int_t number = 2;
+  while(number > 1 || number < 0){
+    std::cout << "Batch Mode? [default: 1]: ";
+    std::string input;
+    std::getline( std::cin, input );
+    if ( !input.empty() ) {
+      std::istringstream stream( input );
+      stream >> number;
+      if(number == 0)
+	gROOT->SetBatch(kFALSE);
+      if(number == 1)
+	gROOT->SetBatch(kTRUE);
+    }
+    else
+      {
+	number = 1;
+	gROOT->SetBatch(kTRUE);
+      }
+  }
+}
+
+Bool_t checkMakePDF(){
+
+  // Set option for pdf creation
+  Int_t number = 2; Bool_t fmakePDF = kTRUE;
+  while(number > 1 || number < 0){
+    std::cout << "Make PDF? [default: 1]: ";
+    std::string input;
+    std::getline( std::cin, input );
+    if ( !input.empty() ){
+      std::istringstream stream( input );
+      stream >> number;
+      if(number == 0)
+	fmakePDF = kFALSE;
+      if(number == 1)
+	fmakePDF = kTRUE;
+    }
+    else
+      number = 1; 
+  }
+  return fmakePDF;
+}
+
+Bool_t checkMakeRoot(){
+
+  // Set option for .root creation
+  Int_t number = 2; Bool_t fmakeROOT = kTRUE;
+  while(number > 1 || number < 0){
+    std::cout << "Make .root? [default: 1]: ";
+    std::string input;
+    std::getline( std::cin, input );
+    if ( !input.empty() ){
+      std::istringstream stream( input );
+      stream >> number;
+      if(number == 0)
+	fmakeROOT = kFALSE;
+      if(number == 1){
+	fmakeROOT = kTRUE;
+      }
+    }
+    else
+      number = 1; 
+  }
+  return fmakeROOT;
+}
+
