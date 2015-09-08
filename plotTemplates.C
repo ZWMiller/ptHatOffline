@@ -34,10 +34,19 @@ void plotTemplates()
    // Make Canvases
    TCanvas* deltaPhi = new TCanvas("deltaPhi","Pythia Delta Phi",150,0,1150,1000);
    deltaPhi->Divide(4,3);
+   TCanvas* singlePlot = new TCanvas("deltaPhiSP","Pythia Delta Phi",150,0,1150,1000);
    
    // Make histos
    TH1D* projB[numPtBins];
    TH1D* projC[numPtBins];
+   TH1F* bPtNorms;
+   TH1F* cPtNorms;
+   Float_t norm0,norm2,normB,normC;
+
+   // Get ptbin independent hists
+   bPtNorms   = (TH1F*)fB->Get("ptNorm");
+   cPtNorms   = (TH1F*)fC->Get("ptNorm");
+
 
   // Get and Draw histos
   TPaveText* lbl[numPtBins];
@@ -54,6 +63,12 @@ void plotTemplates()
       projB[ptbin] = (TH1D*)fB->Get(Form("delPhi_%i",ptbin));
       projC[ptbin] = (TH1D*)fC->Get(Form("delPhi_%i",ptbin));
 
+      // Get Normalizations
+      normB = bPtNorms->GetBinContent(bPtNorms->GetBin(ptbin+1));
+      normC = cPtNorms->GetBinContent(cPtNorms->GetBin(ptbin+1));
+      //projB[ptbin] ->Scale(1./normB);
+      //projC[ptbin] ->Scale(1./normC);
+      
       deltaPhi->cd(ptbin+1);
       projB[ptbin]->SetLineColor(kRed);
       projC[ptbin]->SetLineColor(kBlack);
@@ -66,6 +81,15 @@ void plotTemplates()
       leg->AddEntry(projB[ptbin],"b#bar{b}->NPE","lpe");
       leg->AddEntry(projC[ptbin],"c#bar{c}->NPE","lpe");
       leg->Draw();
+
+      if(ptbin == 1)
+	{
+	  singlePlot->cd();
+	  projC[ptbin]->Draw();
+	  projB[ptbin]->Draw("same");
+	  lbl[ptbin]  ->Draw("same");
+	  leg->Draw("same");
+	}
     }
 
 }

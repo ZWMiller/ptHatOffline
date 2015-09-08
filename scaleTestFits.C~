@@ -123,9 +123,6 @@ void fractionFit()
       projC[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
       plotD0[ptbin]->SetLineColor(kBlue);
       plotD2[ptbin]->SetLineColor(kGreen+3);
-      plotD0[ptbin]->SetMarkerStyle(20);
-      plotD0[ptbin]->SetMarkerColor(kBlue);
-      plotD0[ptbin]->SetMarkerSize(0.4);
       plotB[ptbin]->SetLineColor(kRed);
       plotC[ptbin]->SetLineColor(kBlack);
       plotC[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
@@ -156,11 +153,6 @@ void fractionFit()
 
       combData[ptbin] = (TH1D*) projData0[ptbin]->Clone();
       combData[ptbin] -> Add(projData2[ptbin]);
-      combData[ptbin]->SetLineColor(kBlue);
-      combData[ptbin]->SetMarkerStyle(20);
-      combData[ptbin]->SetMarkerColor(kBlue);
-      combData[ptbin]->SetMarkerSize(0.4);
-      combData[ptbin]->SetTitle("");
 
       // Do the actual fit
       TObjArray *mc = new TObjArray(2);   // MC histograms are put in this array
@@ -176,27 +168,12 @@ void fractionFit()
       std::cout << "fit status: " << status << std::endl;
       if (status == 0) {                       // check on fit status
 	TH1F* result = (TH1F*) fit->GetPlot();
-	TH1F* MCPred0 = (TH1F*) fit->GetMCPrediction(0);
-	TH1F* MCPred1 = (TH1F*) fit->GetMCPrediction(1);
-	result ->Scale(1./norm0);
-	MCPred0->Scale(result->GetMaximum()/MCPred0->GetMaximum());
-	MCPred1->Scale(result->GetMaximum()/MCPred1->GetMaximum());
-	MCPred0->SetLineColor(kRed);
-	MCPred1->SetLineColor(40);
-	MCPred0->SetMarkerColor(kRed);
-	MCPred1->SetMarkerColor(40);
-	MCPred0->SetMarkerStyle(22);
-	MCPred1->SetMarkerStyle(23);
-	plotD0[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
-	//	plotD0[ptbin]->GetYaxis()->SetRangeUser(0,0.5);
+	projData0[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
 	//projData0[ptbin]->GetYaxis()->SetRangeUser(0,1);
-	//projData0[ptbin]->Draw("Ep");
-	plotD0[ptbin]->Draw("Ep");
+	projData0[ptbin]->Draw("Ep");
 	result->SetLineColor(kBlack);
 	result->SetFillColor(kWhite);
 	result->Draw("sames");
-	MCPred0->Draw("same hist");
-	MCPred1->Draw("same hist");
 	lbl[ptbin]->Draw("same");
 	fit->GetResult(0,p00[ptbin],e00[ptbin]);
 	fit->GetResult(1,p01[ptbin],e01[ptbin]);
@@ -257,29 +234,14 @@ void fractionFit()
       Int_t statusC = fitC->Fit();             // perform the fit
       std::cout << "fit status: " << statusC << std::endl;
       if (statusC == 0) {                       // check on fit status
-        TH1F* resultC = (TH1F*) fitC->GetPlot();
-	TH1F* MCPred0C = (TH1F*) fitC->GetMCPrediction(0);
-	TH1F* MCPred1C = (TH1F*) fitC->GetMCPrediction(1);
-	resultC ->Scale(1./(norm0+norm2));
-	MCPred0C->Scale(resultC->GetMaximum()/MCPred0C->GetMaximum());
-	MCPred1C->Scale(resultC->GetMaximum()/MCPred1C->GetMaximum());
-	MCPred0C->SetLineColor(kRed);
-	MCPred1C->SetLineColor(40);
-	MCPred0C->SetMarkerColor(kRed);
-	MCPred1C->SetMarkerColor(40);
-	MCPred0C->SetMarkerStyle(22);
-	MCPred1C->SetMarkerStyle(23);
+	TH1F* resultC = (TH1F*) fitC->GetPlot();
 	combData[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
-	combData[ptbin]->Scale(1/(norm0+norm2));
-	//plotD0[ptbin]->GetYaxis()->SetRangeUser(0,0.5);
-	//projData0[ptbin]->GetYaxis()->SetRangeUser(0,1);
-	//projData0[ptbin]->Draw("Ep");
+	//combData[ptbin]->GetYaxis()->SetRangeUser(0,1);
+	combData[ptbin]->SetTitle("");
 	combData[ptbin]->Draw("Ep");
 	resultC->SetLineColor(kBlack);
 	resultC->SetFillColor(kWhite);
 	resultC->Draw("sames");
-	MCPred0C->Draw("same hist");
-	MCPred1C->Draw("same hist");
 	lbl[ptbin]->Draw("same");
 	fitC->GetResult(0,pC0[ptbin],eC0[ptbin]);
 	fitC->GetResult(1,pC1[ptbin],eC1[ptbin]);

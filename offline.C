@@ -72,6 +72,7 @@ void offline(const char* FileName="test", Int_t mode = 0)
   TH1D* projpthatall;
   char hist[100];
   TH1F* delPhi[numPtBins];
+  TH1F* NpeY[numPtBins];
   TH1F* ptNorm;
   TH1D* projDelPhi[numPtBins];
   TH1D* projNpeY[numPtBins];
@@ -79,6 +80,7 @@ void offline(const char* FileName="test", Int_t mode = 0)
   for(Int_t ptbin=0; ptbin<numPtBins; ptbin++) // initialize all before the actual sorting
     { delPhi[ptbin]= new TH1F(Form("delPhi_%i",ptbin), "Delta Phi" ,200, -10, 10);
       delPhi[ptbin]->Sumw2();
+      NpeY[ptbin] = new TH1F(Form("NpeY_%i",ptbin),"NpeY",60,-3,3);
     }
   ptNorm = new TH1F("ptNorm", "pT Norm" ,200, 0, 20);
   ptNorm ->Sumw2();
@@ -139,9 +141,10 @@ void offline(const char* FileName="test", Int_t mode = 0)
 	  projptHat[ptbin]  = mh2ptHatPt->ProjectionY(Form("projPtHat_%i",ptbin),mh2ptHatPt->GetXaxis()->FindBin(lowpt[ptbin]),mh2ptHatPt->GetXaxis()->FindBin(highpt[ptbin]));
 	
 	  delPhi[ptbin] -> Add(projDelPhi[ptbin],wt);
+	  NpeY[ptbin] -> Add(projNpeY[ptbin],wt);
 	  
 	  // Calculate scaling Factor
-	  Int_t Norm = projNpeY[ptbin]->GetEntries();
+	  Int_t Norm = NpeY[ptbin]->Integral();
 	  ptNorm->SetBinContent(ptNorm->GetBin(ptbin+1),Norm);
 	  totalNorm[ptbin] += Norm;
 	 
