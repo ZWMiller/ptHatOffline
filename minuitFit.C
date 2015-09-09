@@ -27,20 +27,23 @@ TH1F* bPtNorms;
 TH1F* cPtNorms;
 
 Int_t currentPtBin;
+Double_t curChi2;
+Double_t curNDF;
 
 void minuitFit()
 {
   
   gStyle->SetOptFit(1111);
+  gStyle->SetOptStat(0);
 
-   Bool_t makePDF = checkMakePDF();
+  Bool_t makePDF = checkMakePDF();
   
   char name[1000];
   sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/outputs/currentB.root");
   TFile *fB = new TFile(name,"READ");
   sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/outputs/currentC.root");
   TFile *fC = new TFile(name,"READ");
-   sprintf(name,"/Users/zach/Research/rootFiles/run12NPEhPhi/currentData.root");
+  sprintf(name,"/Users/zach/Research/rootFiles/run12NPEhPhi/currentData.root");
   TFile *fD = new TFile(name,"READ");
   if (fB->IsOpen()==kFALSE || fC->IsOpen()==kFALSE)
     { std::cout << "!!!!!! Either B,C, or Data File not found !!!!!!" << std::endl
@@ -67,13 +70,15 @@ void minuitFit()
   
   // Make Canvases
   TCanvas* deltaPhi  = new TCanvas("deltaPhi","Pythia Delta Phi",150,0,1150,1000);
+  TCanvas* deltaPhi2  = new TCanvas("deltaPhi2","Pythia Delta Phi",150,0,1150,1000);
   TCanvas* fitResult0 = new TCanvas("fitResult0","RB Extraction HT0",150,0,1150,1000);
   TCanvas* fitResult2 = new TCanvas("fitResult2","RB Extraction HT2",150,0,1150,1000);
   TCanvas* fitResultC = new TCanvas("fitResultC","RB Extraction Combined Trigs",150,0,1150,1000);
-  deltaPhi->Divide(3,2);
-  fitResult0->Divide(3,2);
-  fitResult2->Divide(3,2);
-  fitResultC->Divide(3,2);
+  deltaPhi  ->Divide(3,3);
+  deltaPhi2 ->Divide(3,3);
+  fitResult0->Divide(3,4);
+  fitResult2->Divide(3,4);
+  fitResultC->Divide(3,4);
 
   // Get and Draw histos
   TPaveText* lbl[numPtBins];
@@ -88,16 +93,36 @@ void minuitFit()
   bPtNorms   = (TH1F*)fB->Get("ptNorm");
   cPtNorms   = (TH1F*)fC->Get("ptNorm");
   
-  for(Int_t ptbin=0; ptbin<7; ptbin++)
+  for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
     {
       norm0 = histoNorms->GetBinContent(histoNorms->GetBin(1,ptbin+1));
       norm2 = histoNorms->GetBinContent(histoNorms->GetBin(3,ptbin+1));
       normB = bPtNorms->GetBinContent(bPtNorms->GetBin(ptbin+1));
       normC = cPtNorms->GetBinContent(cPtNorms->GetBin(ptbin+1));
-      
+
+      if(norm0 == 0)
+	{
+	  cout << ptbin << " For this bin, some norm0 = 0" << endl;
+	  continue;
+	}
+      if( norm2 == 0 )
+	{
+	  cout << ptbin << " For this bin, some norm2 = 0" << endl;
+	  continue;
+	}
+      if( normB == 0 )
+	{
+	  cout << ptbin << " For this bin, some normB = 0" << endl;
+	  continue;
+	}
+      if(normC == 0)
+	{
+	  cout << ptbin << " For this bin, some normC = 0" << endl;
+	  continue;
+	}
       plotbin = ptbin;
       // Init necessary plotting tools
-      lbl[ptbin] = new TPaveText(.25,.8,.5,.88,Form("NB NDC%i",ptbin));
+      lbl[ptbin] = new TPaveText(.15,.15,.35,.23,Form("NB NDC%i",ptbin));
       sprintf(textLabel,"%.1f < P_{T,e} < %.1f",lowpt[ptbin],highpt[ptbin]);
       lbl[ptbin]->AddText(textLabel);
       lbl[ptbin]->SetFillColor(kWhite);
@@ -159,14 +184,15 @@ void minuitFit()
       */
       
       // Draw Templates on own plots
-      deltaPhi->cd(plotbin+1);
+      if(ptbin+1 <= 9) deltaPhi->cd(plotbin+1);
+      if(ptbin+1 > 9) deltaPhi2->cd(ptbin-8);
       plotC[ptbin]  -> Draw("hist");
       plotB[ptbin]  -> Draw("same hist");
       plotD0[ptbin] -> Draw("same");
       plotD2[ptbin] -> Draw("same");
       lbl[ptbin]    -> Draw("same");
 
-      TLegend* leg = new TLegend(0.5,0.73,0.85,0.85);
+      TLegend* leg = new TLegend(0.65,0.6,0.85,0.85);
       leg->AddEntry(projB[ptbin],"b#bar{b}->NPE","lpe");
       leg->AddEntry(projC[ptbin],"c#bar{c}->NPE","lpe");
       leg->AddEntry(projData0[ptbin],"HT0","lpe");
@@ -178,7 +204,6 @@ void minuitFit()
       /////////////////////
 
       cout << "!!!!!!! HT0 ptbin: " << ptbin <<" !!!!!!!"<< endl;
-      fitResult0->cd(ptbin+1);
       currentPtBin = ptbin;
       double arglist[10];int ierflg=0;
       TMinuit *gMinuit=new TMinuit(2); //initialize TMinuit with a maximum of 3 params
@@ -217,12 +242,35 @@ void minuitFit()
       gMinuit->mnprin(4,amin);
       
       // assign to plotting variables
-      pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
-      dx[plotCount0] = 0.;
-      ptOFF1[plotCount0] = pT[ptbin]+0.1;
-      Rb0[plotCount0] = p01[ptbin];///(p01[ptbin]+p00[ptbin]);
-      eb0[plotCount0] = e01[ptbin];
-      plotCount0++;
+      if(highpt[ptbin] < 6)
+	{
+	  pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
+	  dx[plotCount0] = 0.;
+	  ptOFF1[plotCount0] = pT[ptbin]+0.05;
+	  Rb0[plotCount0] = p01[ptbin];///(p01[ptbin]+p00[ptbin]);
+	  eb0[plotCount0] = e01[ptbin];
+	  plotCount0++;
+	}
+    
+      // Plot results
+      fitResult0->cd(ptbin+1);
+      TH1D* dClone = (TH1D*) projData0[ptbin]->Clone();
+      TH1D* cClone = (TH1D*) projC[ptbin]->Clone();
+      TH1D* bClone = (TH1D*) projB[ptbin]->Clone();
+      stat[0][ptbin] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%i",ptbin));
+      sprintf(statLabel,"Chi2/NDF: %.2f/%.2f",curChi2,curNDF);
+      stat[0][ptbin]->InsertText(statLabel);
+      stat[0][ptbin]->SetFillColor(kWhite);
+      cClone->Scale((1.-p00[ptbin])); bClone->Scale(p01[ptbin]); // scale by contribution param
+      cClone->Add(bClone);
+      cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
+      dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
+      dClone->GetYaxis()->SetRangeUser(-0.1,0.4);
+      dClone->Draw();
+      cClone->Draw("same");
+      stat[0][ptbin]->Draw("same");
+      lbl[ptbin]->Draw("same");
+            
 
       cout << "!!!!!!! HT2 ptbin: " << ptbin <<" !!!!!!!"<< endl;
       fitResult2->cd(ptbin+1);
@@ -262,11 +310,33 @@ void minuitFit()
       g2Minuit->mnprin(4,amin);
       
       // assign to plotting variables
-      pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
-      ptOFF2[plotCount2] = pT[ptbin]-0.1;
-      Rb2[plotCount2] = p21[ptbin];///(p21[ptbin]+p20[ptbin]);
-      eb2[plotCount2] = e21[ptbin];
-      plotCount2++;
+      if(highpt[ptbin] > 3.6)
+	{
+	  pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
+	  ptOFF2[plotCount2] = pT[ptbin]-0.05;
+	  Rb2[plotCount2] = p21[ptbin];///(p21[ptbin]+p20[ptbin]);
+	  eb2[plotCount2] = e21[ptbin];
+	  plotCount2++;
+	}
+
+      // Plot results
+      fitResult2->cd(ptbin+1);
+      dClone = (TH1D*) projData2[ptbin]->Clone();
+      cClone = (TH1D*) projC[ptbin]->Clone();
+      bClone = (TH1D*) projB[ptbin]->Clone();
+      stat[2][ptbin] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%i",ptbin));
+      sprintf(statLabel,"Chi2/NDF: %.2f/%.2f",curChi2,curNDF);
+      stat[2][ptbin]->InsertText(statLabel);
+      stat[2][ptbin]->SetFillColor(kWhite);
+      cClone->Scale((1.-p00[ptbin])); bClone->Scale(p01[ptbin]); // scale by contribution param
+      cClone->Add(bClone);
+      cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
+      dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
+      dClone->GetYaxis()->SetRangeUser(-0.1,0.4);
+      dClone->Draw();
+      cClone->Draw("same");
+      stat[2][ptbin]->Draw("same");
+      lbl[ptbin]->Draw("same");
 
       cout << "!!!!!!! HT0&2 ptbin: " << ptbin <<" !!!!!!!"<< endl;
       fitResultC->cd(ptbin+1);
@@ -365,7 +435,7 @@ void minuitFit()
   grC->SetMarkerSize(1);
   grC->SetLineColor(kRed);
   grC->SetMarkerColor(kRed);
-  gr0->GetXaxis()->SetRangeUser(1,14);
+  gr0->GetXaxis()->SetLimits(1,14);
   gr0->GetYaxis()->SetRangeUser(0,1);
   grF->SetLineStyle(1);
   grFmax->SetLineStyle(2);
@@ -375,7 +445,7 @@ void minuitFit()
   
   
   gr0->Draw("AP");
-  grC->Draw("same P");
+  // grC->Draw("same P");
   gr2->Draw("same P");
   grF->Draw("same");
   grFmax->Draw("same");
@@ -385,7 +455,7 @@ void minuitFit()
   TLegend* leg2 = new TLegend(0.15,0.68,0.4,0.85);
   leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
   leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
-  leg2->AddEntry(grC,"Combined Trigs","pe");
+  // leg2->AddEntry(grC,"Combined Trigs","pe");
   leg2->AddEntry(grF,"FONLL (Uncertainty: Scale Only)","l");
   leg2->AddEntry(grP,"Run 5/6 Analysis (Stat Uncertainty)","pe");
   leg2->Draw("same");
@@ -507,6 +577,7 @@ void chi2_0(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
     double y0  = projData0[ptbin] -> GetBinContent(k+1);
     double ey0 = projData0[ptbin] -> GetBinError(k+1);
     //cout << par[0] << endl;
+    //double ycomb = par[0]*y2 + y1*(1-par[0]);
     double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1];
     double delta = (ycomb - y0) / ey0;
         
@@ -541,6 +612,7 @@ void chi2_2(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
     double y0  = projData2[ptbin] -> GetBinContent(k+1);
     double ey0 = projData2[ptbin] -> GetBinError(k+1);
     //cout << par[0] << endl;
+    //double ycomb = par[0]*y2 + y1*(1-par[0]);
     double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1];
     double delta = (ycomb - y0) / ey0;
         
@@ -575,6 +647,7 @@ void chi2_C(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
     double y0  = combData[ptbin] -> GetBinContent(k+1);
     double ey0 = combData[ptbin] -> GetBinError(k+1);
     //cout << par[0] << endl;
+    //double ycomb = par[0]*y2 + y1*(1-par[0]);
     double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1];
     double delta = (ycomb - y0) / ey0;
         
@@ -587,5 +660,7 @@ void chi2_C(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
   }
 
   func = chiSq;
+  curChi2 = chiSq;
+  curNDF = nDof;
 
 }

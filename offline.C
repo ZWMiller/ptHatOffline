@@ -144,7 +144,7 @@ void offline(const char* FileName="test", Int_t mode = 0)
 	  NpeY[ptbin] -> Add(projNpeY[ptbin],wt);
 	  
 	  // Calculate scaling Factor
-	  Int_t Norm = NpeY[ptbin]->Integral();
+	  Double_t Norm = NpeY[ptbin]->Integral();
 	  ptNorm->SetBinContent(ptNorm->GetBin(ptbin+1),Norm);
 	  totalNorm[ptbin] += Norm;
 	 
