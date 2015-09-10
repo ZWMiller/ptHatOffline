@@ -62,6 +62,7 @@ void offline(const char* FileName="test", Int_t mode = 0)
     highpt[c] = anaConst::hpt[c];
   }
   Float_t hptCut=anaConst::hptCut;
+  Float_t hptMax=25; // Set max above range to allow overflow
 
   TH1F* ptHat     = new TH1F("pThat", "" ,1500, 0, 150);
   TH1F* ptHatCorr = new TH1F("pThatCorrected", "" ,1500, 0, 150);
@@ -136,7 +137,7 @@ void offline(const char* FileName="test", Int_t mode = 0)
       for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
 	{
 	  // DEBUGcout << "pthbin: " << pthBin << " ptbin: " << ptbin << endl;
-	  projDelPhi[ptbin] = mh3delPhi->ProjectionZ(Form("projDelPhi_%i",ptbin),mh3delPhi->GetXaxis()->FindBin(lowpt[ptbin]),mh3delPhi->GetXaxis()->FindBin(highpt[ptbin]),mh3delPhi->GetYaxis()->FindBin(hptCut),-1);
+	  projDelPhi[ptbin] = mh3delPhi->ProjectionZ(Form("projDelPhi_%i",ptbin),mh3delPhi->GetXaxis()->FindBin(lowpt[ptbin]),mh3delPhi->GetXaxis()->FindBin(highpt[ptbin]),mh3delPhi->GetYaxis()->FindBin(hptCut),mh3delPhi->GetYaxis()->FindBin(hptMax));
 	  projNpeY[ptbin]   = mh2npePt->ProjectionY(Form("projNpeY_%i",ptbin),mh2npePt->GetXaxis()->FindBin(lowpt[ptbin]),mh2npePt->GetXaxis()->FindBin(highpt[ptbin]));
 	  projptHat[ptbin]  = mh2ptHatPt->ProjectionY(Form("projPtHat_%i",ptbin),mh2ptHatPt->GetXaxis()->FindBin(lowpt[ptbin]),mh2ptHatPt->GetXaxis()->FindBin(highpt[ptbin]));
 	
