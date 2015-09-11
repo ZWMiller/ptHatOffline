@@ -477,9 +477,9 @@ void minuitFit()
 
   c1->cd(1);
 
-  gr0->SetTitle("Bottom Contribution");
-  gr0->GetXaxis()->SetTitle("p_{T,e}");
-  gr0->GetYaxis()->SetTitle("#frac{r_{B}}{(r_{B}+r_{C})}");
+  grP->SetTitle("Bottom Contribution");
+  grP->GetXaxis()->SetTitle("p_{T,e}");
+  grP->GetYaxis()->SetTitle("#frac{r_{B}}{(r_{B}+r_{C})}");
   gr0->SetMarkerStyle(20);
   gr0->SetMarkerSize(1);
   gr0->SetLineColor(kBlue);
@@ -492,8 +492,8 @@ void minuitFit()
   grC->SetMarkerSize(1);
   grC->SetLineColor(kRed);
   grC->SetMarkerColor(kRed);
-  gr0->GetXaxis()->SetLimits(1,14);
-  gr0->GetYaxis()->SetRangeUser(0,1);
+  grP->GetXaxis()->SetLimits(1,14);
+  grP->GetYaxis()->SetRangeUser(0,1);
   grF->SetLineStyle(1);
   grFmax->SetLineStyle(2);
   grFmin->SetLineStyle(2);
@@ -507,19 +507,19 @@ void minuitFit()
   grPPr->SetLineColor(49);
   
   
-  gr0->Draw("AP");
+  grP->Draw("AP");
   // grC->Draw("same P");
-  gr2->Draw("same P");
+  // gr2->Draw("same P");
   grF->Draw("same");
   grFmax->Draw("same");
   grFmin->Draw("same");
-  grP->Draw("same P");
+  // gr0->Draw("same P");
   grPr->Draw("same P");
   grPPr->Draw("same P");
 
   TLegend* leg2 = new TLegend(0.15,0.68,0.4,0.85);
-  leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
-  leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
+  //leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
+  // leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
   // leg2->AddEntry(grC,"Combined Trigs","pe");
   leg2->AddEntry(grP,"Run 5/6 Analysis (Stat Uncertainty)","pe");
   leg2->AddEntry(grPr,"Run 5/6 Refit (new Template)","pe");
@@ -633,7 +633,7 @@ void doFit(TMinuit* gMinuit, Double_t& p0, Double_t& p1, Double_t& e0, Double_t&
   
   //starting values
   double vstart[2]={0.3,1}; //frac
-  double step[2]={0.01,0.01}; //starting step
+  double step[2]={0.005,0.005}; //starting step
   gMinuit->mnparm(0,"BtoNPE frac",vstart[0],step[0],0.000,2,ierflg);
   gMinuit->mnparm(1,"Scale Factor",vstart[1],step[1],0.000,2,ierflg);
   //simple scan to get better start values
