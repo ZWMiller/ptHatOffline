@@ -13,6 +13,8 @@ void chi2_2(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
 void chi2_C(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
 void chi2_P0(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
 void chi2_P1(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
+void chi2_PP(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
+void chi2_PP1(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
 void doFit(TMinuit* ,Double_t&, Double_t&, Double_t&, Double_t&); // Generic call to start fit (function, param0, param1, err0, err1) with the par and err being global returns
 double getFitFunction(Double_t*, double, double);
 char FileName[100];
@@ -31,8 +33,9 @@ TH1F* bPtNorms;
 TH1F* cPtNorms;
 
 // Previous Analysis
-TH1D *Hdphi_0;
-TH1D *Hdphi_1;
+TH1D *Hdphi[2];
+TH1D *HpphiD[2];
+TH1D *HpphiB[2];
 
 Int_t currentPtBin;
 Double_t curChi2;
@@ -54,7 +57,8 @@ Double_t Rb0[numPtBins],Rb2[numPtBins],RbC[numPtBins],pT[numPtBins];
 Double_t eb0[numPtBins],eb2[numPtBins],ebC[numPtBins],dx[numPtBins];
 Double_t ptOFF1[numPtBins],ptOFF2[numPtBins];
 Int_t plotCount0 = 0, plotCount2 = 0, plotCount = 0;
-Double_t RbP[3],EbP[3],pTP[2];
+Double_t RbP[2],EbP[2],pTP[2],SF[2],eSF[2];
+Double_t RbPP[2],EbPP[2],pTPP[2],SFPP[2],eSFPP[2];
 
 
 void minuitFit()
@@ -100,7 +104,7 @@ void minuitFit()
   fitResult0->Divide(3,4);
   fitResult2->Divide(3,4);
   fitResultC->Divide(3,4);
-  fitResultP->Divide(1,2);
+  fitResultP->Divide(2,2);
 
   // Get and Draw histos
   TPaveText* lbl[numPtBins];
@@ -310,9 +314,14 @@ void minuitFit()
 
   // Previous Analysis with my Template
   TFile *file3 = new TFile("/Users/zach/Research/previousNPEhFigures/Chi2_25_35.root");
-  Hdphi_0 = (TH1D*)file3->Get("fit_25_35");
+  Hdphi[0]  = (TH1D*)file3->Get("fit_25_35");
+  HpphiD[0] = (TH1D*)file3->Get("De_25_35");
+  HpphiB[0] = (TH1D*)file3->Get("Be_25_35");
   TFile *file4 = new TFile("/Users/zach/Research/previousNPEhFigures/Chi2_55_65.root");
-  Hdphi_1 = (TH1D*)file4->Get("fit_55_65");
+  Hdphi[1]  = (TH1D*)file4->Get("fit_55_65");
+  HpphiD[1] = (TH1D*)file4->Get("De_55_65");
+  HpphiB[1] = (TH1D*)file4->Get("Be_55_65");
+  
   cout << "!!!!!!! Previous Data: 0"<<" !!!!!!!"<< endl;
 
   //////////
@@ -320,21 +329,21 @@ void minuitFit()
   //////////
   
   gMinuit->SetFCN(chi2_P0);
-  doFit(gMinuit,RbP[0],RbP[2],EbP[0],EbP[2]);
+  doFit(gMinuit,RbP[0],SF[0],EbP[0],eSF[0]);
  
   // assign plotting variables
   pTP[0] = 3.;
 
   // Plot results
   fitResultP->cd(1);
-  TH1D* dClone = (TH1D*) Hdphi_0->Clone();
+  TH1D* dClone = (TH1D*) Hdphi[0]->Clone();
   TH1D* cClone = (TH1D*) projC[0]->Clone();
   TH1D* bClone = (TH1D*) projB[0]->Clone();
   stat[3][0] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%iP",0));
   sprintf(statLabel,"Chi2/NDF: %.2f/%.2f",curChi2,curNDF);
   stat[3][0]->InsertText(statLabel);
   stat[3][0]->SetFillColor(kWhite);
-  cClone->Scale((1.-RbP[0])*RbP[2]); bClone->Scale(RbP[0]*RbP[2]); // scale by contribution param
+  cClone->Scale((1.-RbP[0])*SF[0]); bClone->Scale(RbP[0]*SF[0]); // scale by contribution param
   cClone->Add(bClone);
   // cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
   dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
@@ -349,21 +358,21 @@ void minuitFit()
   ////////
   
   gMinuit->SetFCN(chi2_P1);
-  doFit(gMinuit,RbP[1],RbP[2],EbP[1],EbP[2]);
+  doFit(gMinuit,RbP[1],SF[1],EbP[1],eSF[1]);
   
   // assign plotting variables
   pTP[1] = 6.;
 
   // Plot results
   fitResultP->cd(2);
-  dClone = (TH1D*) Hdphi_1->Clone();
+  dClone = (TH1D*) Hdphi[1]->Clone();
   cClone = (TH1D*) projC[3]->Clone();
   bClone = (TH1D*) projB[3]->Clone();
   stat[3][1] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%iP",0));
   sprintf(statLabel,"Chi2/NDF: %.2f/%.2f",curChi2,curNDF);
   stat[3][1]->InsertText(statLabel);
   stat[3][1]->SetFillColor(kWhite);
-  cClone->Scale((1.-RbP[1])*RbP[2]); bClone->Scale(RbP[1]*RbP[2]); // scale by contribution param
+  cClone->Scale((1.-RbP[1])*SF[1]); bClone->Scale(RbP[1]*SF[1]); // scale by contribution param
   cClone->Add(bClone);
   // cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
   dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
@@ -372,6 +381,61 @@ void minuitFit()
   dClone->Draw();
   cClone->Draw("same");
   stat[3][1]->Draw("same");
+
+  ////////
+  // Old Data, Old Template
+  ///////
+  gMinuit->SetFCN(chi2_PP);
+  doFit(gMinuit,RbPP[0],SFPP[0],EbPP[0],eSFPP[0]);
+  
+  // assign plotting variables
+  pTPP[0] = 3.;
+
+  // Plot results
+  fitResultP->cd(3);
+  dClone = (TH1D*) Hdphi[0]->Clone();
+  cClone = (TH1D*) HpphiD[0]->Clone();
+  bClone = (TH1D*) HpphiB[0]->Clone();
+  stat[3][2] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%iP",0));
+  sprintf(statLabel,"Chi2/NDF: %.2f/%.2f",curChi2,curNDF);
+  stat[3][2]->InsertText(statLabel);
+  stat[3][2]->SetFillColor(kWhite);
+  cClone->Scale((1.-RbPP[0])*SFPP[0]); bClone->Scale(RbPP[0]*SFPP[0]); // scale by contribution param
+  cClone->Add(bClone);
+  // cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
+  dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
+  dClone->GetYaxis()->SetRangeUser(-0.1,0.4);
+  cClone->SetLineColor(kRed);
+  dClone->Draw();
+  cClone->Draw("same");
+  stat[3][2]->Draw("same");
+
+  // Bin at 6 GeV
+  gMinuit->SetFCN(chi2_PP1);
+  doFit(gMinuit,RbPP[1],SFPP[1],EbPP[1],eSFPP[1]);
+  
+  // assign plotting variables
+  pTPP[1] = 6.;
+
+  // Plot results
+  fitResultP->cd(4);
+  dClone = (TH1D*) Hdphi[1]->Clone();
+  cClone = (TH1D*) HpphiD[1]->Clone();
+  bClone = (TH1D*) HpphiB[1]->Clone();
+  stat[3][3] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%iP",0));
+  sprintf(statLabel,"Chi2/NDF: %.2f/%.2f",curChi2,curNDF);
+  stat[3][3]->InsertText(statLabel);
+  stat[3][3]->SetFillColor(kWhite);
+  cClone->Scale((1.-RbPP[1])*SFPP[1]); bClone->Scale(RbPP[1]*SFPP[1]); // scale by contribution param
+  cClone->Add(bClone);
+  // cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
+  dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
+  dClone->GetYaxis()->SetRangeUser(-0.1,0.4);
+  cClone->SetLineColor(kRed);
+  dClone->Draw();
+  cClone->Draw("same");
+  stat[3][3]->Draw("same");
+  
 
   // Get FONLL Calc
   Int_t l=0;
@@ -408,6 +472,7 @@ void minuitFit()
   TGraphErrors *grFmin  = new TGraphErrors(l-1,xF,minF);
   TGraphErrors *grP     = new TGraphErrors(p-1,xP,yP,0,dyP);
   TGraphErrors *grPr    = new TGraphErrors(2,pTP,RbP,0,EbP);
+  TGraphErrors *grPPr   = new TGraphErrors(2,pTPP,RbPP,0,EbPP);
   
 
   c1->cd(1);
@@ -437,6 +502,9 @@ void minuitFit()
   grPr->SetMarkerStyle(29);
   grPr->SetMarkerColor(9);
   grPr->SetLineColor(9);
+  grPPr->SetMarkerStyle(29);
+  grPPr->SetMarkerColor(49);
+  grPPr->SetLineColor(49);
   
   
   gr0->Draw("AP");
@@ -447,14 +515,16 @@ void minuitFit()
   grFmin->Draw("same");
   grP->Draw("same P");
   grPr->Draw("same P");
+  grPPr->Draw("same P");
 
   TLegend* leg2 = new TLegend(0.15,0.68,0.4,0.85);
   leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
   leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
   // leg2->AddEntry(grC,"Combined Trigs","pe");
-  leg2->AddEntry(grF,"FONLL (Uncertainty: Scale Only)","l");
   leg2->AddEntry(grP,"Run 5/6 Analysis (Stat Uncertainty)","pe");
-  leg2->AddEntry(grPr,"Run 5/6 Refit","pe");
+  leg2->AddEntry(grPr,"Run 5/6 Refit (new Template)","pe");
+  leg2->AddEntry(grPPr,"Run 5/6 Refit (prev Template)","pe");
+  leg2->AddEntry(grF,"FONLL (Uncertainty: Scale Only)","l");
   leg2->Draw("same");
   
    // Make PDF with output canvases
@@ -553,6 +623,45 @@ Bool_t checkMakePDF(){
     }
 
   return fmakePDF;
+}
+
+void doFit(TMinuit* gMinuit, Double_t& p0, Double_t& p1, Double_t& e0, Double_t& e1)
+{
+  gMinuit->SetMaxIterations(50000);
+  arglist[0]=1; //error definition: chi^2 change by 1 to get 1 sigma
+  gMinuit->mnexcm("SET ERR",arglist,1,ierflg);
+  
+  //starting values
+  double vstart[2]={0.3,1}; //frac
+  double step[2]={0.01,0.01}; //starting step
+  gMinuit->mnparm(0,"BtoNPE frac",vstart[0],step[0],0.000,2,ierflg);
+  gMinuit->mnparm(1,"Scale Factor",vstart[1],step[1],0.000,2,ierflg);
+  //simple scan to get better start values
+  gMinuit->mnexcm("SCAN",arglist,0,ierflg); 
+  cout<<"done with first scan!"<<endl;
+  
+  //minimization
+  arglist[0]=5000; //maxcalls
+  arglist[1]=0.5; // tolerance = 0.001*[this value]*[error def] //5.0 before
+  gMinuit->mnexcm("MINIMIZE",arglist,2,ierflg);
+
+  cout<< "done with fit! Error Flag: " << ierflg << endl;
+  
+  //fit results
+  TString *str0 = new TString("BtoNPE frac");
+  TString *str1 = new TString("Scale Factor");
+  gMinuit->mnpout(0,*str0,p0,e0,dum1,dum2,ierflg);
+  gMinuit->mnpout(1,*str1,p1,e1,dum1,dum2,ierflg);
+  
+  
+  cout << endl << endl << "rB: " << p0 << "  A: " << p1 << endl
+       << "eB: " << e0 << " eA: " << e1 << endl << endl;
+  
+  //Print results
+  
+  gMinuit->mnstat(amin,edm,errdef,nvpar,nparx,icstat);
+  gMinuit->mnprin(4,amin);
+
 }
 
 void chi2_0(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
@@ -682,15 +791,15 @@ void chi2_P0(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag)
 
     // Binning different in old data. First get bin center from old data (delPhi value), then find that bin in template, then get the value. 
 
-    Double_t binCent = Hdphi_0->GetBinCenter(k+1);
+    Double_t binCent = Hdphi[0]->GetBinCenter(k+1);
     //  cout << "got binCent: "<< binCent << endl;
     Int_t bin = projC[0]->FindBin(binCent); // same binning as C
     //cout << "got template bin: " << bin << endl;
     
     double y1  = projC[0] -> GetBinContent(bin); 
     double y2  = projB[0] -> GetBinContent(bin);
-    double y0  = Hdphi_0 -> GetBinContent(k+1);
-    double ey0 = Hdphi_0 -> GetBinError(k+1);
+    double y0  = Hdphi[0] -> GetBinContent(k+1);
+    double ey0 = Hdphi[0] -> GetBinError(k+1);
     
     double ycomb = getFitFunction(par,y1,y2);
     double delta = (ycomb - y0) / ey0;
@@ -720,31 +829,79 @@ void chi2_P1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag)
 
     // Binning different in old data. First get bin center from old data (delPhi value), then find that bin in template, then get the value. 
 
-    Double_t binCent = Hdphi_1->GetBinCenter(k+1);
+    Double_t binCent = Hdphi[1]->GetBinCenter(k+1);
     //  cout << "got binCent: "<< binCent << endl;
     Int_t bin = projC[3]->FindBin(binCent); // same binning as C
     //cout << "got template bin: " << bin << endl;
     
     double y1  = projC[3] -> GetBinContent(bin); 
     double y2  = projB[3] -> GetBinContent(bin);
-    double y0  = Hdphi_1 -> GetBinContent(k+1);
-    double ey0 = Hdphi_1 -> GetBinError(k+1);
+    double y0  = Hdphi[1] -> GetBinContent(k+1);
+    double ey0 = Hdphi[1] -> GetBinError(k+1);
     
     double ycomb = getFitFunction(par,y1,y2);
     double delta = (ycomb - y0) / ey0;
         
     chiSq += delta*delta;
     nDof++;
-    
-    //debug
-    //cout <<"k: " << k << " c: " << y1 << " b: " << y2 << " data/er: " << y0 << "/"
-    //	 << ey0 << " c2: " << chiSq << endl;
   }
 
   func = chiSq;
   curChi2 = chiSq;
   curNDF = nDof;
 
+}
+
+void chi2_PP(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
+  
+  curChi2 = 0.;
+  curNDF = 0.;
+  double chiSq = 0.;
+  int nDof = 0; 
+
+  for(int k=18;k<48;k++)
+    { // -1.5 to 1.5 in old data delPhi
+    
+      double y1  = HpphiD[0] -> GetBinContent(k+1); 
+      double y2  = HpphiB[0] -> GetBinContent(k+1);
+      double y0  = Hdphi[0] -> GetBinContent(k+1);
+      double ey0 = Hdphi[0] -> GetBinError(k+1);
+      
+      double ycomb = getFitFunction(par,y1,y2);
+      double delta = (ycomb - y0) / ey0;
+      
+      chiSq += delta*delta;
+      nDof++;
+    }
+  func = chiSq;
+  curChi2 = chiSq;
+  curNDF = nDof;
+}
+
+void chi2_PP1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
+  
+  curChi2 = 0.;
+  curNDF = 0.;
+  double chiSq = 0.;
+  int nDof = 0; 
+
+  for(int k=18;k<48;k++)
+    { // -1.5 to 1.5 in old data delPhi
+    
+      double y1  = HpphiD[1] -> GetBinContent(k+1); 
+      double y2  = HpphiB[1] -> GetBinContent(k+1);
+      double y0  = Hdphi[1] -> GetBinContent(k+1);
+      double ey0 = Hdphi[1] -> GetBinError(k+1);
+      
+      double ycomb = getFitFunction(par,y1,y2);
+      double delta = (ycomb - y0) / ey0;
+      
+      chiSq += delta*delta;
+      nDof++;
+    }
+  func = chiSq;
+  curChi2 = chiSq;
+  curNDF = nDof;
 }
 
 double getFitFunction(Double_t *par, double y1, double y2)
@@ -755,41 +912,4 @@ double getFitFunction(Double_t *par, double y1, double y2)
   return ycomb;
 }
 
-void doFit(TMinuit* gMinuit, Double_t& p0, Double_t& p1, Double_t& e0, Double_t& e1)
-{
-  gMinuit->SetMaxIterations(50000);
-  arglist[0]=1; //error definition: chi^2 change by 1 to get 1 sigma
-  gMinuit->mnexcm("SET ERR",arglist,1,ierflg);
-  
-  //starting values
-  double vstart[2]={0.3,1}; //frac
-  double step[2]={0.01,0.01}; //starting step
-  gMinuit->mnparm(0,"BtoNPE frac",vstart[0],step[0],0.000,2,ierflg);
-  gMinuit->mnparm(1,"Scale Factor",vstart[1],step[1],0.000,2,ierflg);
-  //simple scan to get better start values
-  gMinuit->mnexcm("SCAN",arglist,0,ierflg); 
-  cout<<"done with first scan!"<<endl;
-  
-  //minimization
-  arglist[0]=5000; //maxcalls
-  arglist[1]=0.5; // tolerance = 0.001*[this value]*[error def] //5.0 before
-  gMinuit->mnexcm("MINIMIZE",arglist,2,ierflg);
 
-  cout<< "done with fit! Error Flag: " << ierflg << endl;
-  
-  //fit results
-  TString *str0 = new TString("BtoNPE frac");
-  TString *str1 = new TString("Scale Factor");
-  gMinuit->mnpout(0,*str0,p0,e0,dum1,dum2,ierflg);
-  gMinuit->mnpout(1,*str1,p1,e1,dum1,dum2,ierflg);
-  
-  
-  cout << endl << endl << "rB: " << p0 << "  A: " << p1 << endl
-       << "eB: " << e0 << " eA: " << e1 << endl << endl;
-  
-  //Print results
-  
-  gMinuit->mnstat(amin,edm,errdef,nvpar,nparx,icstat);
-  gMinuit->mnprin(4,amin);
-
-}
