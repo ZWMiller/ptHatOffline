@@ -137,9 +137,9 @@ void offline(const char* FileName="test", Int_t mode = 0)
       for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
 	{
 	  // DEBUGcout << "pthbin: " << pthBin << " ptbin: " << ptbin << endl;
-	  projDelPhi[ptbin] = mh3delPhi->ProjectionZ(Form("projDelPhi_%i",ptbin),mh3delPhi->GetXaxis()->FindBin(lowpt[ptbin]),mh3delPhi->GetXaxis()->FindBin(highpt[ptbin]),mh3delPhi->GetYaxis()->FindBin(hptCut),mh3delPhi->GetYaxis()->FindBin(hptMax));
-	  projNpeY[ptbin]   = mh2npePt->ProjectionY(Form("projNpeY_%i",ptbin),mh2npePt->GetXaxis()->FindBin(lowpt[ptbin]),mh2npePt->GetXaxis()->FindBin(highpt[ptbin]));
-	  projptHat[ptbin]  = mh2ptHatPt->ProjectionY(Form("projPtHat_%i",ptbin),mh2ptHatPt->GetXaxis()->FindBin(lowpt[ptbin]),mh2ptHatPt->GetXaxis()->FindBin(highpt[ptbin]));
+	  projDelPhi[ptbin] = mh3delPhi->ProjectionZ(Form("projDelPhi_%i",ptbin),mh3delPhi->GetXaxis()->FindBin(lowpt[ptbin]),mh3delPhi->GetXaxis()->FindBin(highpt[ptbin])-1,mh3delPhi->GetYaxis()->FindBin(hptCut),mh3delPhi->GetYaxis()->FindBin(hptMax));
+	  projNpeY[ptbin]   = mh2npePt->ProjectionY(Form("projNpeY_%i",ptbin),mh2npePt->GetXaxis()->FindBin(lowpt[ptbin]),mh2npePt->GetXaxis()->FindBin(highpt[ptbin])-1);
+	  projptHat[ptbin]  = mh2ptHatPt->ProjectionY(Form("projPtHat_%i",ptbin),mh2ptHatPt->GetXaxis()->FindBin(lowpt[ptbin]),mh2ptHatPt->GetXaxis()->FindBin(highpt[ptbin])-1);
 	
 	  delPhi[ptbin] -> Add(projDelPhi[ptbin],wt);
 	  NpeY[ptbin] -> Add(projNpeY[ptbin],wt);
