@@ -13,7 +13,6 @@ void chi2_2(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
 void chi2_C(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
 void chi2_P0(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
 void chi2_P1(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
-void doFit(TMinuit* ,Double_t&, Double_t&, Double_t&, Double_t&); // Generic call to start fit (function, param0, param1, err0, err1) with the par and err being global returns
 double getFitFunction(Double_t*, double, double);
 char FileName[100];
 const Int_t numPtBins = anaConst::nPtBins;
@@ -46,16 +45,6 @@ int nvpar,nparx,icstat;
 double arglist[10];int ierflg=0;
 double dum1,dum2;
 
-// Global values for simple fit handling
-Double_t p00[numPtBins],p01[numPtBins],p20[numPtBins],p21[numPtBins];
-Double_t e00[numPtBins],e01[numPtBins],e20[numPtBins],e21[numPtBins];
-Double_t pC0[numPtBins],pC1[numPtBins],eC0[numPtBins],eC1[numPtBins];
-Double_t Rb0[numPtBins],Rb2[numPtBins],RbC[numPtBins],pT[numPtBins];
-Double_t eb0[numPtBins],eb2[numPtBins],ebC[numPtBins],dx[numPtBins];
-Double_t ptOFF1[numPtBins],ptOFF2[numPtBins];
-Int_t plotCount0 = 0, plotCount2 = 0, plotCount = 0;
-Double_t RbP[3],EbP[3],pTP[2];
-
 
 void minuitFit()
 {
@@ -87,6 +76,14 @@ void minuitFit()
     highpt[c] = anaConst::hpt[c];
   }
   Float_t hptCut=anaConst::hptCut;
+  Double_t p00[numPtBins],p01[numPtBins],p20[numPtBins],p21[numPtBins];
+  Double_t e00[numPtBins],e01[numPtBins],e20[numPtBins],e21[numPtBins];
+  Double_t pC0[numPtBins],pC1[numPtBins],eC0[numPtBins],eC1[numPtBins];
+  Double_t Rb0[numPtBins],Rb2[numPtBins],RbC[numPtBins],pT[numPtBins];
+  Double_t eb0[numPtBins],eb2[numPtBins],ebC[numPtBins],dx[numPtBins];
+  Double_t ptOFF1[numPtBins],ptOFF2[numPtBins];
+  Int_t plotCount0 = 0, plotCount2 = 0, plotCount = 0;
+  Double_t RbP[3],EbP[3],pTP[2];
   
   // Make Canvases
   TCanvas* deltaPhi  = new TCanvas("deltaPhi","Pythia Delta Phi",150,0,1150,1000);
@@ -227,12 +224,45 @@ void minuitFit()
       // Do the actual fits
       /////////////////////
 
-      currentPtBin = ptbin;
       cout << "!!!!!!! HT0 ptbin: " << highpt[ptbin] << "-" << lowpt[ptbin] <<" !!!!!!!"<< endl;
-      TMinuit* gMinuit = new TMinuit(2);
-      gMinuit->SetFCN(chi2_0);
       currentPtBin = ptbin;
-      doFit(gMinuit,p01[ptbin],p00[ptbin],e01[ptbin],e00[ptbin]);
+      
+      TMinuit *gMinuit=new TMinuit(2); //initialize TMinuit with a maximum of 3 params
+      gMinuit->SetMaxIterations(50000);
+      gMinuit->SetFCN(chi2_0);
+      arglist[0]=1; //error definition: chi^2 change by 1 to get 1 sigma
+      gMinuit->mnexcm("SET ERR",arglist,1,ierflg);
+
+      //starting values
+      double vstart[2]={0.3,1}; //frac
+      double step[2]={0.01,0.01}; //starting step
+      gMinuit->mnparm(0,"BtoNPE frac",vstart[0],step[0],0.000,2,ierflg);
+      gMinuit->mnparm(1,"Scale Factor",vstart[1],step[1],0.000,2,ierflg);
+      //simple scan to get better start values
+      gMinuit->mnexcm("SCAN",arglist,0,ierflg); 
+      cout<<"done with first scan!"<<endl;
+
+      //minimization
+      arglist[0]=5000; //maxcalls
+      arglist[1]=0.5; // tolerance = 0.001*[this value]*[error def] //5.0 before
+      gMinuit->mnexcm("MINIMIZE",arglist,2,ierflg);
+
+      cout<< "done with fit! Error Flag: " << ierflg << endl;
+
+       //fit results
+      TString *str0 = new TString("BtoNPE frac");
+      TString *str1 = new TString("Scale Factor");
+      gMinuit->mnpout(0,*str0,p01[ptbin],e01[ptbin],dum1,dum2,ierflg);
+      gMinuit->mnpout(1,*str1,p00[ptbin],e00[ptbin],dum1,dum2,ierflg);
+
+      cout << endl << endl << "HT0 PT Bin: " << lowpt[ptbin] << "-" << highpt[ptbin] << endl
+	   << "rB: " << p01[ptbin] << " rC: " << p00[ptbin] << endl
+	   << "erB: " << e01[ptbin] << " erC: " << e00[ptbin] << endl << endl;
+      
+      //Print results
+     
+      gMinuit->mnstat(amin,edm,errdef,nvpar,nparx,icstat);
+      gMinuit->mnprin(4,amin);
       
       // assign to plotting variables
       if(highpt[ptbin] < 6)
@@ -266,9 +296,44 @@ void minuitFit()
             
 
       cout << "!!!!!!! HT2 ptbin: " <<  highpt[ptbin] << "-" << lowpt[ptbin] <<" !!!!!!!"<< endl;
-      gMinuit->SetFCN(chi2_2);
-      doFit(gMinuit,p21[ptbin],p20[ptbin],e21[ptbin],e20[ptbin]);
+      fitResult2->cd(ptbin+1);
+      currentPtBin = ptbin;
+      TMinuit *g2Minuit=new TMinuit(2); //initialize TMinuit with a maximum of 3 params
+      g2Minuit->SetMaxIterations(50000);
+      g2Minuit->SetFCN(chi2_2);
+      arglist[0]=1; //error definition: chi^2 change by 1 to get 1 sigma
+      g2Minuit->mnexcm("SET ERR",arglist,1,ierflg);
 
+      //starting values
+      double vstart2[2]={0.3,1}; //frac
+      double step2[2]={0.01,0.01}; //starting step
+      g2Minuit->mnparm(0,"BtoNPE frac",vstart2[0],step2[0],0.000,2,ierflg);
+      g2Minuit->mnparm(1,"Scale Factor",vstart2[1],step2[1],0.000,2,ierflg);
+      //simple scan to get better start values
+      g2Minuit->mnexcm("SCAN",arglist,0,ierflg); 
+      cout<<"done with first scan!"<<endl;
+
+      //minimization
+      arglist[0]=5000; //maxcalls
+      arglist[1]=0.5; // tolerance = 0.001*[this value]*[error def] //5.0 before
+      g2Minuit->mnexcm("MINIMIZE",arglist,2,ierflg);
+
+      cout<< "done with fit! Error Flag: " << ierflg << endl;
+
+       //fit results
+      TString *str2 = new TString("BtoNPE frac");
+      TString *str3 = new TString("Scale Factor");
+      g2Minuit->mnpout(0,*str2,p21[ptbin],e21[ptbin],dum1,dum2,ierflg);
+      g2Minuit->mnpout(1,*str3,p20[ptbin],e20[ptbin],dum1,dum2,ierflg);
+
+      cout << endl << endl << "HT2 PT Bin: " << lowpt[ptbin] << "-" << highpt[ptbin] << endl
+	   << "rB: " << p21[ptbin] << " rC: " << p20[ptbin] << endl
+	   << "erB: " << e21[ptbin] << " erC: " << e20[ptbin] << endl << endl;
+      
+      //Print results
+      g2Minuit->mnstat(amin,edm,errdef,nvpar,nparx,icstat);
+      g2Minuit->mnprin(4,amin);
+      
       // assign to plotting variables
       if(highpt[ptbin] > 3.6)
 	{
@@ -298,9 +363,45 @@ void minuitFit()
       stat[2][ptbin]->Draw("same");
       lbl[ptbin]->Draw("same");
 
-      cout << "!!!!!!! HTC ptbin: " <<  highpt[ptbin] << "-" << lowpt[ptbin] <<" !!!!!!!"<< endl;
-      gMinuit->SetFCN(chi2_C);
-      doFit(gMinuit,pC1[ptbin],pC0[ptbin],eC1[ptbin],eC0[ptbin]);
+      cout << "!!!!!!! HT0&2 ptbin: " <<  highpt[ptbin] << "-" << lowpt[ptbin] <<" !!!!!!!"<< endl;
+      fitResultC->cd(ptbin+1);
+      currentPtBin = ptbin;
+      TMinuit *gCMinuit=new TMinuit(2); //initialize TMinuit with a maximum of 3 params
+      gCMinuit->SetMaxIterations(50000);
+      gCMinuit->SetFCN(chi2_C);
+      arglist[0]=1; //error definition: chi^2 change by 1 to get 1 sigma
+      gCMinuit->mnexcm("SET ERR",arglist,1,ierflg);
+
+      //starting values
+      double vstartC[2]={0.3,1}; //frac
+      double stepC[2]={0.01,0.01}; //starting step
+      gCMinuit->mnparm(0,"BtoNPE frac",vstartC[0],stepC[0],0.000,2,ierflg);
+      gCMinuit->mnparm(1,"Scale Factor",vstartC[1],stepC[1],0.000,2,ierflg);
+      //simple scan to get better start values
+      gCMinuit->mnexcm("SCAN",arglist,0,ierflg); 
+      cout<<"done with first scan!"<<endl;
+
+      //minimization
+      arglist[0]=5000; //maxcalls
+      arglist[1]=0.5; // tolerance = 0.001*[this value]*[error def] //5.0 before
+      gCMinuit->mnexcm("MINIMIZE",arglist,2,ierflg);
+
+      cout<< "done with fit! Error Flag: " << ierflg << endl;
+
+       //fit results
+      TString *str4 = new TString("BtoNPE frac");
+      TString *str5 = new TString("Scale Factor");
+      gCMinuit->mnpout(0,*str4,pC1[ptbin],eC1[ptbin],dum1,dum2,ierflg);
+      gCMinuit->mnpout(1,*str5,pC0[ptbin],eC0[ptbin],dum1,dum2,ierflg);
+
+      cout << endl << endl << "HTC PT Bin: " << lowpt[ptbin] << "-" << highpt[ptbin] << endl
+	   << "rB: " << pC1[ptbin] << " rC: " << pC0[ptbin] << endl
+	   << "erB: " << eC1[ptbin] << " erC: " << eC0[ptbin] << endl << endl;
+
+      //Print results
+      gCMinuit->mnstat(amin,edm,errdef,nvpar,nparx,icstat);
+      gCMinuit->mnprin(4,amin);
+      
       // assign to plotting variables
       pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
       RbC[plotCount] = pC1[ptbin];///(p21[ptbin]+p20[ptbin]);
@@ -319,9 +420,39 @@ void minuitFit()
   // 2.5-3.5 GeV Bin
   //////////
   
-  gMinuit->SetFCN(chi2_P0);
-  doFit(gMinuit,RbP[0],RbP[2],EbP[0],EbP[2]);
- 
+  fitResultP->cd(1);
+  TMinuit *gPMinuit=new TMinuit(2); //initialize TMinuit with a maximum of 3 params
+  gPMinuit->SetMaxIterations(50000);
+  gPMinuit->SetFCN(chi2_P0);
+  arglist[0]=1; //error definition: chi^2 change by 1 to get 1 sigma
+  gPMinuit->mnexcm("SET ERR",arglist,1,ierflg);
+  
+  //starting values
+  double vstartPr[2]={0.3,1}; //frac
+  double stepPr[2]={0.01,0.01}; //starting step
+  gPMinuit->mnparm(0,"BtoNPE frac",vstartPr[0],stepPr[0],0.000,2,ierflg);
+  gPMinuit->mnparm(1,"Scale Factor",vstartPr[1],stepPr[1],0.000,2,ierflg);
+  //simple scan to get better start values
+  gPMinuit->mnexcm("SCAN",arglist,0,ierflg); 
+  cout<<"done with first scan!"<<endl;
+  
+  //minimization
+  arglist[0]=5000; //maxcalls
+  arglist[1]=0.5; // tolerance = 0.001*[this value]*[error def] //5.0 before
+  gPMinuit->mnexcm("MINIMIZE",arglist,2,ierflg);
+  
+  cout<< "done with fit! Error Flag: " << ierflg << endl;
+  
+  //fit results
+  TString *str6 = new TString("BtoNPE frac");
+  TString *str7 = new TString("Scale Factor");
+  gPMinuit->mnpout(0,*str6,RbP[0],EbP[0],dum1,dum2,ierflg);
+  gPMinuit->mnpout(1,*str7,RbP[2],EbP[2],dum1,dum2,ierflg);
+  
+  //Print results
+  gPMinuit->mnstat(amin,edm,errdef,nvpar,nparx,icstat);
+  gPMinuit->mnprin(4,amin);
+  
   // assign plotting variables
   pTP[0] = 3.;
 
@@ -348,8 +479,36 @@ void minuitFit()
   // 5.5-6.5 GeV Bin
   ////////
   
-  gMinuit->SetFCN(chi2_P1);
-  doFit(gMinuit,RbP[1],RbP[2],EbP[1],EbP[2]);
+  fitResultP->cd(2);
+  TMinuit *gPMinuit2=new TMinuit(2); //initialize TMinuit with a maximum of 3 params
+  gPMinuit2->SetMaxIterations(50000);
+  gPMinuit2->SetFCN(chi2_P1);
+  arglist[0]=1; //error definition: chi^2 change by 1 to get 1 sigma
+  gPMinuit2->mnexcm("SET ERR",arglist,1,ierflg);
+  
+  //starting values
+  gPMinuit2->mnparm(0,"BtoNPE frac",vstartPr[0],stepPr[0],0.000,2,ierflg);
+  gPMinuit2->mnparm(1,"Scale Factor",vstartPr[1],stepPr[1],0.000,2,ierflg);
+  //simple scan to get better start values
+  gPMinuit2->mnexcm("SCAN",arglist,0,ierflg); 
+  cout<<"done with first scan!"<<endl;
+  
+  //minimization
+  arglist[0]=5000; //maxcalls
+  arglist[1]=0.5; // tolerance = 0.001*[this value]*[error def] //5.0 before
+  gPMinuit2->mnexcm("MINIMIZE",arglist,2,ierflg);
+  
+  cout<< "done with fit! Error Flag: " << ierflg << endl;
+  
+  //fit results
+  TString *str8 = new TString("BtoNPE frac");
+  TString *str9 = new TString("Scale Factor");
+  gPMinuit2->mnpout(0,*str8,RbP[1],EbP[1],dum1,dum2,ierflg);
+  gPMinuit2->mnpout(1,*str9,RbP[2],EbP[2],dum1,dum2,ierflg);
+  
+  //Print results
+  gPMinuit2->mnstat(amin,edm,errdef,nvpar,nparx,icstat);
+  gPMinuit2->mnprin(4,amin);
   
   // assign plotting variables
   pTP[1] = 6.;
@@ -373,6 +532,7 @@ void minuitFit()
   cClone->Draw("same");
   stat[3][1]->Draw("same");
 
+  
   // Get FONLL Calc
   Int_t l=0;
   char line[1000];
@@ -749,47 +909,8 @@ void chi2_P1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag)
 
 double getFitFunction(Double_t *par, double y1, double y2)
 {
-  //double ycomb = par[0]*y2 + y1*(1-par[0]); // rb*yb + (1-rb)*yv
-  double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1]; //A*rb*yb + A*(1-rb)*yc
+  double ycomb = par[0]*y2 + y1*(1-par[0]); // rb*yb + (1-rb)*yv
+  //double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1]; //A*rb*yb + A*(1-rb)*yc
   //double ycomb = par[0]*y2 + y1*(1-par[0])+par[1];  // rb*yb + (1-rb)*yv + A
   return ycomb;
-}
-
-void doFit(TMinuit* gMinuit, Double_t& p0, Double_t& p1, Double_t& e0, Double_t& e1)
-{
-  gMinuit->SetMaxIterations(50000);
-  arglist[0]=1; //error definition: chi^2 change by 1 to get 1 sigma
-  gMinuit->mnexcm("SET ERR",arglist,1,ierflg);
-  
-  //starting values
-  double vstart[2]={0.3,1}; //frac
-  double step[2]={0.01,0.01}; //starting step
-  gMinuit->mnparm(0,"BtoNPE frac",vstart[0],step[0],0.000,2,ierflg);
-  gMinuit->mnparm(1,"Scale Factor",vstart[1],step[1],0.000,2,ierflg);
-  //simple scan to get better start values
-  gMinuit->mnexcm("SCAN",arglist,0,ierflg); 
-  cout<<"done with first scan!"<<endl;
-  
-  //minimization
-  arglist[0]=5000; //maxcalls
-  arglist[1]=0.5; // tolerance = 0.001*[this value]*[error def] //5.0 before
-  gMinuit->mnexcm("MINIMIZE",arglist,2,ierflg);
-
-  cout<< "done with fit! Error Flag: " << ierflg << endl;
-  
-  //fit results
-  TString *str0 = new TString("BtoNPE frac");
-  TString *str1 = new TString("Scale Factor");
-  gMinuit->mnpout(0,*str0,p0,e0,dum1,dum2,ierflg);
-  gMinuit->mnpout(1,*str1,p1,e1,dum1,dum2,ierflg);
-  
-  
-  cout << endl << endl << "rB: " << p0 << "  A: " << p1 << endl
-       << "eB: " << e0 << " eA: " << e1 << endl << endl;
-  
-  //Print results
-  
-  gMinuit->mnstat(amin,edm,errdef,nvpar,nparx,icstat);
-  gMinuit->mnprin(4,amin);
-
 }
