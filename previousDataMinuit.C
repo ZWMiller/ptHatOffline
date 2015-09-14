@@ -28,7 +28,7 @@ TH1D* plotD0[numPtBins];
 TH1D* plotD2[numPtBins];
 TH1D* plotC[numPtBins];
 TH1D* plotB[numPtBins];
-TH1F* histoNorms;
+TH2F* histoNorms;
 TH1F* bPtNorms;
 TH1F* cPtNorms;
 
@@ -40,8 +40,8 @@ TH1D *HpphiB[2];
 Int_t currentPtBin;
 Double_t curChi2;
 Double_t curNDF;
-Int_t rangeLow  = 75;  //85-116 for near-side only
-Int_t rangeHigh = 125; //75-125 for ~(-pi,pi)
+Int_t rangeLow  = 85;  //85-116 for near-side only
+Int_t rangeHigh = 116; //75-125 for ~(-pi,pi)
 
 // Minuit Constants
 double amin,edm,errdef;
@@ -60,6 +60,8 @@ Int_t plotCount0 = 0, plotCount2 = 0, plotCount = 0;
 Double_t RbP[2],EbP[2],pTP[2],SF[2],eSF[2];
 Double_t RbPP[2],EbPP[2],pTPP[2],SFPP[2],eSFPP[2];
 
+// For Scale Check
+Double_t scX[numPtBins], scY[numPtBins];
 
 void minuitFit()
 {
@@ -99,12 +101,14 @@ void minuitFit()
   TCanvas* fitResult2 = new TCanvas("fitResult2","RB Extraction HT2",150,0,1150,1000);
   TCanvas* fitResultC = new TCanvas("fitResultC","RB Extraction Combined Trigs",150,0,1150,1000);
   TCanvas* fitResultP = new TCanvas("fitResultP","RB Previous Analysis",150,0,1150,1000);
+  TCanvas* scaleCheck = new TCanvas("scaleCheck","Check scale diff",150,0,1150,1000);
   deltaPhi  ->Divide(3,3);
   deltaPhi2 ->Divide(3,3);
   fitResult0->Divide(3,4);
   fitResult2->Divide(3,4);
   fitResultC->Divide(3,4);
   fitResultP->Divide(2,2);
+  scaleCheck->Divide(1,2);
 
   // Get and Draw histos
   TPaveText* lbl[numPtBins];
@@ -112,12 +116,23 @@ void minuitFit()
   char statLabel[100];
   char textLabel[100];
   Int_t plotbin;
-  Float_t norm0,norm2,normB,normC;
+  Double_t norm0,norm2,normB,normC;
 
   // Get ptbin independent hists
-  histoNorms = (TH1F*)fD->Get("histoNorms");
+  histoNorms = (TH2F*)fD->Get("histoNorms");
   bPtNorms   = (TH1F*)fB->Get("ptNorm");
   cPtNorms   = (TH1F*)fC->Get("ptNorm");
+  // Get Previous Analysis
+  TFile *file3 = new TFile("/Users/zach/Research/previousNPEhFigures/Chi2_25_35.root");
+  Hdphi[0]  = (TH1D*)file3->Get("fit_25_35");
+  HpphiD[0] = (TH1D*)file3->Get("De_25_35");
+  HpphiB[0] = (TH1D*)file3->Get("Be_25_35");
+  TFile *file4 = new TFile("/Users/zach/Research/previousNPEhFigures/Chi2_55_65.root");
+  Hdphi[1]  = (TH1D*)file4->Get("fit_55_65");
+  HpphiD[1] = (TH1D*)file4->Get("De_55_65");
+  HpphiB[1] = (TH1D*)file4->Get("Be_55_65");
+  
+
   
   for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
     {
@@ -126,7 +141,9 @@ void minuitFit()
       normB = bPtNorms->GetBinContent(bPtNorms->GetBin(ptbin+1));
       normC = cPtNorms->GetBinContent(cPtNorms->GetBin(ptbin+1));
 
-      if(norm0 == 0)
+      cout << ptbin << "; 0: " << norm0 << " 2: " << norm2 << endl;
+
+      if( norm0 == 0)
 	{
 	  cout << ptbin << " For this bin, some norm0 = 0" << endl;
 	  continue;
@@ -141,7 +158,7 @@ void minuitFit()
 	  cout << ptbin << " For this bin, some normB = 0" << endl;
 	  continue;
 	}
-      if(normC == 0)
+      if( normC == 0)
 	{
 	  cout << ptbin << " For this bin, some normC = 0" << endl;
 	  continue;
@@ -195,25 +212,20 @@ void minuitFit()
       combData[ptbin]->SetTitle("");
       
       // Normalize
-      projB[ptbin]     -> Scale(1/normB);
-      projC[ptbin]     -> Scale(1/normC);
-      projData0[ptbin] -> Scale(1/norm0);
-      projData2[ptbin] -> Scale(1/norm2);
-      plotD0[ptbin]    -> Scale(1/norm0);
-      plotD2[ptbin]    -> Scale(1/norm2);
-      plotB[ptbin]     -> Scale(1/(normB));
-      plotC[ptbin]     -> Scale(1/(normC));
-      combData[ptbin]  -> Scale(1/(norm0+norm2));
-    /*projB[ptbin]     -> Scale(projData0[ptbin]->GetBinContent(70)/projB[ptbin]->GetBinContent(70));
-      projC[ptbin]     -> Scale(projData0[ptbin]->GetBinContent(70)/projC[ptbin]->GetBinContent(70));
-      plotB[ptbin]     -> Scale(projData0[ptbin]->GetBinContent(70)/plotB[ptbin]->GetBinContent(70));
-      plotC[ptbin]     -> Scale(projData0[ptbin]->GetBinContent(70)/plotC[ptbin]->GetBinContent(70));
-      */
-      
+      projB[ptbin]     -> Scale(1./normB);
+      projC[ptbin]     -> Scale(1./normC);
+      projData0[ptbin] -> Scale(1./norm0);
+      projData2[ptbin] -> Scale(1./norm2);
+      plotD0[ptbin]    -> Scale(1./norm0);
+      plotD2[ptbin]    -> Scale(1./norm2);
+      plotB[ptbin]     -> Scale(1./normB);
+      plotC[ptbin]     -> Scale(1./normC);
+      combData[ptbin]  -> Scale(1./(norm0+norm2));
+        
       // Draw Templates on own plots
       if(ptbin+1 <= 9) deltaPhi->cd(plotbin+1);
       if(ptbin+1 > 9) deltaPhi2->cd(ptbin-8);
-      plotC[ptbin]->GetYaxis()->SetRangeUser(-.1,0.5);
+      plotC[ptbin]->GetYaxis()->SetRangeUser(-.1,0.8);
       plotC[ptbin]  -> Draw("hist");
       plotB[ptbin]  -> Draw("same hist");
       plotD0[ptbin] -> Draw("same");
@@ -227,13 +239,35 @@ void minuitFit()
       leg->AddEntry(projData2[ptbin],"HT2","lpe");
       leg->Draw();
 
+      deltaPhi->cd(1);
+      Hdphi[0]->Draw("same");
+      deltaPhi->cd(4);
+      Hdphi[1]->Draw("same");
+      
+      /*// Draw Scale Check
+      scaleCheck->cd(1);
+      TH1F* HT0 = (TH1F*) plotD0[0]->Clone();
+      HT0->Divide(HT0,Hdphi[0],1,1);
+      HT0->Draw();
+      scaleCheck->cd(2);
+      TH1F* HT2 = (TH1F*) plotD2[3]->Clone();
+      HT2->Divide(HT2,Hdphi[1],1,1);
+      HT0->GetXaxis()->SetRangeUser(-3.5,3.5);
+      HT2->GetXaxis()->SetRangeUser(-3.5,3.5);
+      HT2->Draw();
+      lbl[ptbin]->Draw("same");
+      TLegend* legSC = new TLegend(0.65,0.6,0.85,0.85);
+      legSC->AddEntry(HT0,"HT0/prevdata","lpe");
+      legSC->AddEntry(HT2,"HT2/prevdata","lpe");
+      legSC->Draw();*/
+
       /////////////////////
       // Do the actual fits
       /////////////////////
 
       currentPtBin = ptbin;
       cout << "!!!!!!! HT0 ptbin: " << highpt[ptbin] << "-" << lowpt[ptbin] <<" !!!!!!!"<< endl;
-      TMinuit* gMinuit = new TMinuit(2);
+      TMinuit* gMinuit = new TMinuit(1);
       gMinuit->SetFCN(chi2_0);
       currentPtBin = ptbin;
       doFit(gMinuit,p01[ptbin],p00[ptbin],e01[ptbin],e00[ptbin]);
@@ -262,7 +296,7 @@ void minuitFit()
       cClone->Add(bClone);
       //cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
       dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
-      dClone->GetYaxis()->SetRangeUser(-0.1,0.4);
+      dClone->GetYaxis()->SetRangeUser(-0.1,0.6);
       dClone->Draw();
       cClone->Draw("same");
       stat[0][ptbin]->Draw("same");
@@ -296,7 +330,7 @@ void minuitFit()
       cClone->Add(bClone);
       // cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
       dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
-      dClone->GetYaxis()->SetRangeUser(-0.1,0.4);
+      dClone->GetYaxis()->SetRangeUser(-0.1,0.6);
       dClone->Draw();
       cClone->Draw("same");
       stat[2][ptbin]->Draw("same");
@@ -311,16 +345,6 @@ void minuitFit()
       ebC[plotCount] = eC1[ptbin];
       plotCount++;
     }
-
-  // Previous Analysis with my Template
-  TFile *file3 = new TFile("/Users/zach/Research/previousNPEhFigures/Chi2_25_35.root");
-  Hdphi[0]  = (TH1D*)file3->Get("fit_25_35");
-  HpphiD[0] = (TH1D*)file3->Get("De_25_35");
-  HpphiB[0] = (TH1D*)file3->Get("Be_25_35");
-  TFile *file4 = new TFile("/Users/zach/Research/previousNPEhFigures/Chi2_55_65.root");
-  Hdphi[1]  = (TH1D*)file4->Get("fit_55_65");
-  HpphiD[1] = (TH1D*)file4->Get("De_55_65");
-  HpphiB[1] = (TH1D*)file4->Get("Be_55_65");
   
   cout << "!!!!!!! Previous Data: 0"<<" !!!!!!!"<< endl;
 
@@ -336,9 +360,12 @@ void minuitFit()
 
   // Plot results
   fitResultP->cd(1);
-  TH1D* dClone = (TH1D*) Hdphi[0]->Clone();
+  /*TH1D* dClone = (TH1D*) Hdphi[0]->Clone();
   TH1D* cClone = (TH1D*) projC[0]->Clone();
-  TH1D* bClone = (TH1D*) projB[0]->Clone();
+  TH1D* bClone = (TH1D*) projB[0]->Clone();*/
+  TH1D* dClone = (TH1D*) projData0[0]->Clone();
+  TH1D* cClone = (TH1D*) HpphiD[0]->Clone();
+  TH1D* bClone = (TH1D*) HpphiB[0]->Clone();
   stat[3][0] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%iP",0));
   sprintf(statLabel,"Chi2/NDF: %.2f/%.2f",curChi2,curNDF);
   stat[3][0]->InsertText(statLabel);
@@ -347,7 +374,7 @@ void minuitFit()
   cClone->Add(bClone);
   // cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
   dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
-  dClone->GetYaxis()->SetRangeUser(-0.1,0.4);
+  dClone->GetYaxis()->SetRangeUser(-0.1,0.6);
   cClone->SetLineColor(kRed);
   dClone->Draw();
   cClone->Draw("same");
@@ -365,9 +392,12 @@ void minuitFit()
 
   // Plot results
   fitResultP->cd(2);
-  dClone = (TH1D*) Hdphi[1]->Clone();
+  /*dClone = (TH1D*) Hdphi[1]->Clone();
   cClone = (TH1D*) projC[3]->Clone();
-  bClone = (TH1D*) projB[3]->Clone();
+  bClone = (TH1D*) projB[3]->Clone();*/
+  dClone = (TH1D*) projData2[3]->Clone();
+  cClone = (TH1D*) HpphiD[1]->Clone();
+  bClone = (TH1D*) HpphiB[1]->Clone();
   stat[3][1] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%iP",0));
   sprintf(statLabel,"Chi2/NDF: %.2f/%.2f",curChi2,curNDF);
   stat[3][1]->InsertText(statLabel);
@@ -376,7 +406,7 @@ void minuitFit()
   cClone->Add(bClone);
   // cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
   dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
-  dClone->GetYaxis()->SetRangeUser(-0.1,0.4);
+  dClone->GetYaxis()->SetRangeUser(-0.1,0.6);
   cClone->SetLineColor(kRed);
   dClone->Draw();
   cClone->Draw("same");
@@ -404,7 +434,7 @@ void minuitFit()
   cClone->Add(bClone);
   // cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
   dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
-  dClone->GetYaxis()->SetRangeUser(-0.1,0.4);
+  dClone->GetYaxis()->SetRangeUser(-0.1,0.6);
   cClone->SetLineColor(kRed);
   dClone->Draw();
   cClone->Draw("same");
@@ -430,7 +460,7 @@ void minuitFit()
   cClone->Add(bClone);
   // cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
   dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
-  dClone->GetYaxis()->SetRangeUser(-0.1,0.4);
+  dClone->GetYaxis()->SetRangeUser(-0.1,0.6);
   cClone->SetLineColor(kRed);
   dClone->Draw();
   cClone->Draw("same");
@@ -508,19 +538,19 @@ void minuitFit()
   
   
   grP->Draw("AP");
-  // grC->Draw("same P");
-  // gr2->Draw("same P");
+  //grC->Draw("same P");
+  gr2->Draw("same P");
   grF->Draw("same");
   grFmax->Draw("same");
   grFmin->Draw("same");
-  // gr0->Draw("same P");
+  gr0->Draw("same P");
   grPr->Draw("same P");
   grPPr->Draw("same P");
 
   TLegend* leg2 = new TLegend(0.15,0.68,0.4,0.85);
-  //leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
-  // leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
-  // leg2->AddEntry(grC,"Combined Trigs","pe");
+  leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
+  leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
+  //leg2->AddEntry(grC,"Combined Trigs","pe");
   leg2->AddEntry(grP,"Run 5/6 Analysis (Stat Uncertainty)","pe");
   leg2->AddEntry(grPr,"Run 5/6 Refit (new Template)","pe");
   leg2->AddEntry(grPPr,"Run 5/6 Refit (prev Template)","pe");
@@ -577,8 +607,8 @@ void minuitFit()
       temp->Print(name);
       temp = fitResult2;
       temp->Print(name);
-      temp = fitResultC;
-      temp->Print(name);
+      // temp = fitResultC;
+      // temp->Print(name);
       temp = c1;
       temp->Print(name);
       
@@ -787,29 +817,31 @@ void chi2_P0(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag)
   double chiSq = 0.;
   int nDof = 0; 
 
-  for(int k=18;k<48;k++){ // -1.5 to 1.5 in old data delPhi
+  for(int k=17;k<47;k++){ // -1.5 to 1.5 in old data delPhi
 
     // Binning different in old data. First get bin center from old data (delPhi value), then find that bin in template, then get the value. 
 
     Double_t binCent = Hdphi[0]->GetBinCenter(k+1);
-    //  cout << "got binCent: "<< binCent << endl;
     Int_t bin = projC[0]->FindBin(binCent); // same binning as C
-    //cout << "got template bin: " << bin << endl;
     
-    double y1  = projC[0] -> GetBinContent(bin); 
+    // My Templates, their data
+    /* double y1  = projC[0] -> GetBinContent(bin); 
     double y2  = projB[0] -> GetBinContent(bin);
     double y0  = Hdphi[0] -> GetBinContent(k+1);
-    double ey0 = Hdphi[0] -> GetBinError(k+1);
+    double ey0 = Hdphi[0] -> GetBinError(k+1);*/
+
+    // My Data, Their Templates
+    double y1  = HpphiD[0] -> GetBinContent(k+1); 
+    double y2  = HpphiB[0] -> GetBinContent(k+1);
+    double y0  = projData0[0] -> GetBinContent(bin);
+    double ey0 = projData0[0] -> GetBinError(bin);
     
     double ycomb = getFitFunction(par,y1,y2);
-    double delta = (ycomb - y0) / ey0;
-        
-    chiSq += delta*delta;
-    nDof++;
-    
-    //debug
-    //cout <<"k: " << k << " c: " << y1 << " b: " << y2 << " data/er: " << y0 << "/"
-    //	 << ey0 << " c2: " << chiSq << endl;
+    if(ey0 > 0){
+      double delta = (ycomb - y0) / ey0;
+      chiSq += delta*delta;
+      nDof++;
+    }
   }
 
   func = chiSq;
@@ -830,20 +862,26 @@ void chi2_P1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag)
     // Binning different in old data. First get bin center from old data (delPhi value), then find that bin in template, then get the value. 
 
     Double_t binCent = Hdphi[1]->GetBinCenter(k+1);
-    //  cout << "got binCent: "<< binCent << endl;
     Int_t bin = projC[3]->FindBin(binCent); // same binning as C
-    //cout << "got template bin: " << bin << endl;
     
-    double y1  = projC[3] -> GetBinContent(bin); 
+    // My Templates, Their Data
+    /*   double y1  = projC[3] -> GetBinContent(bin); 
     double y2  = projB[3] -> GetBinContent(bin);
     double y0  = Hdphi[1] -> GetBinContent(k+1);
-    double ey0 = Hdphi[1] -> GetBinError(k+1);
+    double ey0 = Hdphi[1] -> GetBinError(k+1);*/
+
+    // My Data, Their Templates
+    double y1  = HpphiD[1] -> GetBinContent(k+1); 
+    double y2  = HpphiB[1] -> GetBinContent(k+1);
+    double y0  = projData2[3] -> GetBinContent(bin);
+    double ey0 = projData2[3] -> GetBinError(bin);
     
     double ycomb = getFitFunction(par,y1,y2);
-    double delta = (ycomb - y0) / ey0;
-        
-    chiSq += delta*delta;
-    nDof++;
+    if(ey0 > 0){
+      double delta = (ycomb - y0) / ey0;
+      chiSq += delta*delta;
+      nDof++;
+    }
   }
 
   func = chiSq;
@@ -868,10 +906,12 @@ void chi2_PP(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag)
       double ey0 = Hdphi[0] -> GetBinError(k+1);
       
       double ycomb = getFitFunction(par,y1,y2);
-      double delta = (ycomb - y0) / ey0;
-      
-      chiSq += delta*delta;
-      nDof++;
+      if(ey0>0)
+	{
+	  double delta = (ycomb - y0) / ey0;
+	  chiSq += delta*delta;
+	  nDof++;
+	}
     }
   func = chiSq;
   curChi2 = chiSq;
@@ -894,10 +934,12 @@ void chi2_PP1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag
       double ey0 = Hdphi[1] -> GetBinError(k+1);
       
       double ycomb = getFitFunction(par,y1,y2);
-      double delta = (ycomb - y0) / ey0;
-      
-      chiSq += delta*delta;
-      nDof++;
+      if(ey0 >0)
+	{
+	  double delta = (ycomb - y0) / ey0;
+	  chiSq += delta*delta;
+	  nDof++;
+	}
     }
   func = chiSq;
   curChi2 = chiSq;

@@ -175,7 +175,7 @@ void offline(const char* FileName="test", Int_t mode = 0)
 
       deltaPhi->cd(ptbin+1);
       delPhi[ptbin]->GetXaxis()->SetTitle("#Delta#phi_{eh}");
-      delPhi[ptbin]->Sumw2();
+      // delPhi[ptbin]->Sumw2();
       //cout << totalNorm[ptbin] << endl;
       //delPhi[ptbin]->Scale(wt);
       delPhi[ptbin]->GetYaxis()->SetTitle("1/N_{NPE} #upoint dN/d(#Delta)#phi");
