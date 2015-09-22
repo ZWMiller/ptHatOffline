@@ -544,16 +544,16 @@ void minuitFit()
   grFmax->Draw("same");
   grFmin->Draw("same");
   gr0->Draw("same P");
-  grPr->Draw("same P");
-  grPPr->Draw("same P");
+  // grPr->Draw("same P");
+  //grPPr->Draw("same P");
 
   TLegend* leg2 = new TLegend(0.15,0.68,0.4,0.85);
   leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
   leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
   //leg2->AddEntry(grC,"Combined Trigs","pe");
   leg2->AddEntry(grP,"Run 5/6 Analysis (Stat Uncertainty)","pe");
-  leg2->AddEntry(grPr,"Run 5/6 Refit (new Template)","pe");
-  leg2->AddEntry(grPPr,"Run 5/6 Refit (prev Template)","pe");
+  // leg2->AddEntry(grPr,"Run 5/6 Refit (new Template)","pe");
+  //leg2->AddEntry(grPPr,"Run 5/6 Refit (prev Template)","pe");
   leg2->AddEntry(grF,"FONLL (Uncertainty: Scale Only)","l");
   leg2->Draw("same");
   
@@ -948,8 +948,8 @@ void chi2_PP1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag
 
 double getFitFunction(Double_t *par, double y1, double y2)
 {
-  //double ycomb = par[0]*y2 + y1*(1-par[0]); // rb*yb + (1-rb)*yv
-  double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1]; //A*rb*yb + A*(1-rb)*yc
+  double ycomb = par[0]*y2 + y1*(1-par[0]); // rb*yb + (1-rb)*yv
+  //double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1]; //A*rb*yb + A*(1-rb)*yc
   //double ycomb = par[0]*y2 + y1*(1-par[0])+par[1];  // rb*yb + (1-rb)*yv + A
   return ycomb;
 }

@@ -78,6 +78,10 @@ void offline(const char* FileName="test", Int_t mode = 0)
   TH1D* projDelPhi[numPtBins];
   TH1D* projNpeY[numPtBins];
   TH1D* projptHat[numPtBins];
+  TH1F* temp;
+  TH1F* delPhi2535 = new TH1F("delPhi2535","",200,-10,10);
+  TH1F* trigCount = new TH1F("trigCount","",10,0,10);
+  Float_t norm2535;
   for(Int_t ptbin=0; ptbin<numPtBins; ptbin++) // initialize all before the actual sorting
     { delPhi[ptbin]= new TH1F(Form("delPhi_%i",ptbin), "Delta Phi" ,200, -10, 10);
       delPhi[ptbin]->Sumw2();
@@ -126,12 +130,22 @@ void offline(const char* FileName="test", Int_t mode = 0)
       mh2ptHatPt   = (TH2F*)f->Get(hist);
       sprintf(hist, "hStatistics");
       hStats       = (TH1F*)f->Get(hist);
+      sprintf(hist, "delPhi");
+      temp         = (TH1F*)f->Get(hist);
+      sprintf(hist, "trigCount");
+      trigCount    = (TH1F*)f->Get(hist);
           
       // Calculate Weight factors
       wt = 1e9*1e-3*(hStats->GetBinContent(1)/hStats->GetBinContent(2)); // Taken from Zhenyu's method. The 1e# factors are luminosity(?) corrections?
       projpthatall = mh2ptHatPt->ProjectionY("test",0,-1);
       ptHat -> Add(projpthatall);
       ptHatCorr -> Add(projpthatall,wt);
+
+      // pt bin independent
+      delPhi2535 -> Add(temp,wt); // still need weight from pthat
+      //trigCount -> Scale(wt);     // "      "    "     "     "
+      norm2535 += trigCount->GetBinContent(1);
+      //delPhi2535 -> Scale(1./norm2535);
    
       // Analyze each ptH bin individually, adding to the overall hists
       for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
