@@ -8,6 +8,8 @@
 #include "anaConst.h"
 
 Bool_t checkMakePDF();
+Bool_t checkMakeRoot();
+Bool_t haveName;
 void chi2_0(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
 void chi2_2(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
 void chi2_C(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
@@ -18,6 +20,7 @@ void chi2_PP1(Int_t&,Double_t*,Double_t&,Double_t* ,Int_t);
 void doFit(TMinuit* ,Double_t&, Double_t&, Double_t&, Double_t&); // Generic call to start fit (function, param0, param1, err0, err1) with the par and err being global returns
 double getFitFunction(Double_t*, double, double);
 char FileName[100];
+char FileNameR[100];
 const Int_t numPtBins = anaConst::nPtBins;
 TH1D* projB[numPtBins];
 TH1D* projC[numPtBins];
@@ -70,8 +73,21 @@ void minuitFit()
   
   gStyle->SetOptFit(1111);
   gStyle->SetOptStat(0);
-
+  haveName = kFALSE;
+  char fname[100];
+  TFile* file;
   Bool_t makePDF = checkMakePDF();
+  Bool_t makeROOT = checkMakeRoot();
+  if(makeROOT){
+    sprintf(fname,"/Users/zach/Research/pythia/ptHatTemplate/FFOutput/%s_FIT.root",FileNameR);
+    file = new TFile(fname,"RECREATE");
+    if (file->IsOpen()==kFALSE)
+      {
+	std::cout << "!!! Outfile Not Opened !!!" << std::endl;
+	makeROOT = kFALSE;
+      }
+  }
+
   
   char name[1000];
   sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/outputs/currentB.root");
@@ -615,6 +631,11 @@ void minuitFit()
       sprintf(name, "FFOutput/%s.pdf]", FileName);
       temp->Print(name);
     }
+   if(makeROOT)
+    {
+      file->Write();
+      file->Close();
+    }
 }
 
 Bool_t checkMakePDF(){
@@ -650,9 +671,53 @@ Bool_t checkMakePDF(){
 	{
 	  sprintf(FileName, "test");
 	}
+      haveName = kTRUE;
     }
 
   return fmakePDF;
+}
+
+Bool_t checkMakeRoot(){
+
+  // Set option for pdf creation
+  Int_t number = 2; Bool_t fmakeRoot = kTRUE;
+  while(number > 1 || number < 0){
+    std::cout << "Make Root File? [default: 1]: ";
+    std::string input;
+    std::getline( std::cin, input );
+    if ( !input.empty() ){
+      std::istringstream stream( input );
+      stream >> number;
+      if(number == 0)
+	fmakeROOT = kFALSE;
+      if(number == 1)
+	fmakeROOT = kTRUE;
+    }
+    else
+      number = 1; 
+  }
+  if(fmakeRoot) // need a file name if making pdf
+    {
+      if(haveName)
+	sprintf(FileNameR,"%s",FileName);
+      else
+	{
+	  cout << "Need FileName (no ext.): ";
+	  std::string input2;
+	  std::getline( std::cin, input2 );
+	  if ( !input2.empty() ){
+	    std::istringstream stream2( input2 );
+	    string s = stream2.str();
+	    sprintf(FileNameR,"%s",s.c_str());
+	  }
+	  else
+	    {
+	      sprintf(FileNameR, "test");
+	    }
+	}
+    }
+
+  return fmakeRoot;
 }
 
 void doFit(TMinuit* gMinuit, Double_t& p0, Double_t& p1, Double_t& e0, Double_t& e1)
@@ -948,8 +1013,8 @@ void chi2_PP1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag
 
 double getFitFunction(Double_t *par, double y1, double y2)
 {
-  double ycomb = par[0]*y2 + y1*(1-par[0]); // rb*yb + (1-rb)*yv
-  //double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1]; //A*rb*yb + A*(1-rb)*yc
+  //double ycomb = par[0]*y2 + y1*(1-par[0]); // rb*yb + (1-rb)*yv
+  double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1]; //A*rb*yb + A*(1-rb)*yc
   //double ycomb = par[0]*y2 + y1*(1-par[0])+par[1];  // rb*yb + (1-rb)*yv + A
   return ycomb;
 }
