@@ -147,9 +147,7 @@ void minuitFit()
   Hdphi[1]  = (TH1D*)file4->Get("fit_55_65");
   HpphiD[1] = (TH1D*)file4->Get("De_55_65");
   HpphiB[1] = (TH1D*)file4->Get("Be_55_65");
-  
-
-  
+    
   for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
     {
       norm0 = histoNorms->GetBinContent(histoNorms->GetBin(1,ptbin+1));
@@ -562,7 +560,7 @@ void minuitFit()
   gr0->Draw("same P");
   // grPr->Draw("same P");
   //grPPr->Draw("same P");
-
+ 
   TLegend* leg2 = new TLegend(0.15,0.68,0.4,0.85);
   leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
   leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
@@ -572,6 +570,22 @@ void minuitFit()
   //leg2->AddEntry(grPPr,"Run 5/6 Refit (prev Template)","pe");
   leg2->AddEntry(grF,"FONLL (Uncertainty: Scale Only)","l");
   leg2->Draw("same");
+
+   // Write to Root File if open
+  if(makeROOT){
+    file3->Close();
+    file4->Close();
+    file->cd();
+    grP->Write("PreviousData");
+    //grC->Write("same P");
+    gr2->Write("HT2");
+    grF->Write("FONLL");
+    grFmax->Write("FONLLmax");
+    grFmin->Write("FONLLmin");
+    gr0->Write("HT0");
+    // grPr->Write("PrevTempMyData");
+    //grPPr->Write("PrevTempPreData");
+  }
   
    // Make PDF with output canvases
   if(makePDF)
@@ -1013,8 +1027,8 @@ void chi2_PP1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag
 
 double getFitFunction(Double_t *par, double y1, double y2)
 {
-  //double ycomb = par[0]*y2 + y1*(1-par[0]); // rb*yb + (1-rb)*yv
-  double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1]; //A*rb*yb + A*(1-rb)*yc
+  double ycomb = par[0]*y2 + y1*(1-par[0]); // rb*yb + (1-rb)*yv
+  //double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1]; //A*rb*yb + A*(1-rb)*yc
   //double ycomb = par[0]*y2 + y1*(1-par[0])+par[1];  // rb*yb + (1-rb)*yv + A
   return ycomb;
 }

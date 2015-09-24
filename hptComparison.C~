@@ -1,0 +1,16 @@
+// .x hptComparison.C
+// Plots rB for different hpt cuts. Change file names within file as necessary
+
+{
+
+  char name[1000];
+  sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/FFOutput/Sep24_0p3_1par_FIT.root");
+  TFile *f31 = new TFile(name,"READ");
+   sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/FFOutput/Sep24_0p5_1par_FIT.root");
+  TFile *f51 = new TFile(name,"READ");
+  sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/FFOutput/Sep24_0p3_2par_FIT.root");
+  TFile *f32 = new TFile(name,"READ");
+  sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/FFOutput/Sep24_0p5_2par_FIT.root");
+  TFile *f52 = new TFile(name,"READ");
+
+}
