@@ -31,6 +31,7 @@ TH1D* plotD0[numPtBins];
 TH1D* plotD2[numPtBins];
 TH1D* plotC[numPtBins];
 TH1D* plotB[numPtBins];
+TH1D* pileupCorrect[numPtBins][2];
 TH2F* histoNorms;
 TH1F* bPtNorms;
 TH1F* cPtNorms;
@@ -70,7 +71,7 @@ void minuitFit()
 {
 
   cout << "Must Use Same Binning as previous Analysis!" << endl;
-  
+
   gStyle->SetOptFit(1111);
   gStyle->SetOptStat(0);
   haveName = kFALSE;
@@ -82,13 +83,13 @@ void minuitFit()
     sprintf(fname,"/Users/zach/Research/pythia/ptHatTemplate/FFOutput/%s_FIT.root",FileNameR);
     file = new TFile(fname,"RECREATE");
     if (file->IsOpen()==kFALSE)
-      {
-	std::cout << "!!! Outfile Not Opened !!!" << std::endl;
-	makeROOT = kFALSE;
-      }
+    {
+      std::cout << "!!! Outfile Not Opened !!!" << std::endl;
+      makeROOT = kFALSE;
+    }
   }
 
-  
+
   char name[1000];
   sprintf(name,"/Users/zach/Research/pythia/ptHatTemplate/outputs/currentB.root");
   TFile *fB = new TFile(name,"READ");
@@ -97,19 +98,19 @@ void minuitFit()
   sprintf(name,"/Users/zach/Research/rootFiles/run12NPEhPhi/currentData.root");
   TFile *fD = new TFile(name,"READ");
   if (fB->IsOpen()==kFALSE || fC->IsOpen()==kFALSE)
-    { std::cout << "!!!!!! Either B,C, or Data File not found !!!!!!" << std::endl
-		<< "Looking for currentB.root, currentC.root, and currentData.root" << std::endl;
-      exit(1); }
-  
+  { std::cout << "!!!!!! Either B,C, or Data File not found !!!!!!" << std::endl
+    << "Looking for currentB.root, currentC.root, and currentData.root" << std::endl;
+    exit(1); }
+
   // Set constants and projection bins (from header file anaConst, analysis constants)
-  
+
   Float_t lowpt[numPtBins],highpt[numPtBins];
   for(Int_t c=0; c< numPtBins; c++){
     lowpt[c] = anaConst::lpt[c];
     highpt[c] = anaConst::hpt[c];
   }
   Float_t hptCut=anaConst::hptCut;
-  
+
   // Make Canvases
   TCanvas* deltaPhi  = new TCanvas("deltaPhi","Pythia Delta Phi",150,0,1150,1000);
   TCanvas* deltaPhi2  = new TCanvas("deltaPhi2","Pythia Delta Phi",150,0,1150,1000);
@@ -147,118 +148,125 @@ void minuitFit()
   Hdphi[1]  = (TH1D*)file4->Get("fit_55_65");
   HpphiD[1] = (TH1D*)file4->Get("De_55_65");
   HpphiB[1] = (TH1D*)file4->Get("Be_55_65");
-    
+
   for(Int_t ptbin=0; ptbin<numPtBins; ptbin++)
+  {
+    norm0 = histoNorms->GetBinContent(histoNorms->GetBin(1,ptbin+1));
+    norm2 = histoNorms->GetBinContent(histoNorms->GetBin(3,ptbin+1));
+    normB = bPtNorms->GetBinContent(bPtNorms->GetBin(ptbin+1));
+    normC = cPtNorms->GetBinContent(cPtNorms->GetBin(ptbin+1));
+
+    cout << ptbin << "; 0: " << norm0 << " 2: " << norm2 << endl;
+
+    if( norm0 == 0)
     {
-      norm0 = histoNorms->GetBinContent(histoNorms->GetBin(1,ptbin+1));
-      norm2 = histoNorms->GetBinContent(histoNorms->GetBin(3,ptbin+1));
-      normB = bPtNorms->GetBinContent(bPtNorms->GetBin(ptbin+1));
-      normC = cPtNorms->GetBinContent(cPtNorms->GetBin(ptbin+1));
+      cout << ptbin << " For this bin, some norm0 = 0" << endl;
+      continue;
+    }
+    if( norm2 == 0 )
+    {
+      cout << ptbin << " For this bin, some norm2 = 0" << endl;
+      continue;
+    }
+    if( normB == 0 )
+    {
+      cout << ptbin << " For this bin, some normB = 0" << endl;
+      continue;
+    }
+    if( normC == 0)
+    {
+      cout << ptbin << " For this bin, some normC = 0" << endl;
+      continue;
+    }
+    plotbin = ptbin;
+    // Init necessary plotting tools
+    lbl[ptbin] = new TPaveText(.15,.15,.35,.23,Form("NB NDC%i",ptbin));
+    sprintf(textLabel,"%.1f < P_{T,e} < %.1f",lowpt[ptbin],highpt[ptbin]);
+    lbl[ptbin]->AddText(textLabel);
+    lbl[ptbin]->SetFillColor(kWhite);
 
-      cout << ptbin << "; 0: " << norm0 << " 2: " << norm2 << endl;
+    projB[ptbin] = (TH1D*)fB->Get(Form("delPhi_%i",ptbin));
+    projC[ptbin] = (TH1D*)fC->Get(Form("delPhi_%i",ptbin));
+    projData0[ptbin]= (TH1D*)fD->Get(Form("NPEhDelPhi_0_%i",ptbin));
+    projData2[ptbin]= (TH1D*)fD->Get(Form("NPEhDelPhi_2_%i",ptbin));
+ 
+    pileupCorrect[ptbin][0] = (TH1D*)fD->Get(Form("pileupCorrection_%i_0",ptbin));
+    pileupCorrect[ptbin][1] = (TH1D*)fD->Get(Form("pileupCorrection_%i_2",ptbin));
 
-      if( norm0 == 0)
-	{
-	  cout << ptbin << " For this bin, some norm0 = 0" << endl;
-	  continue;
-	}
-      if( norm2 == 0 )
-	{
-	  cout << ptbin << " For this bin, some norm2 = 0" << endl;
-	  continue;
-	}
-      if( normB == 0 )
-	{
-	  cout << ptbin << " For this bin, some normB = 0" << endl;
-	  continue;
-	}
-      if( normC == 0)
-	{
-	  cout << ptbin << " For this bin, some normC = 0" << endl;
-	  continue;
-	}
-      plotbin = ptbin;
-      // Init necessary plotting tools
-      lbl[ptbin] = new TPaveText(.15,.15,.35,.23,Form("NB NDC%i",ptbin));
-      sprintf(textLabel,"%.1f < P_{T,e} < %.1f",lowpt[ptbin],highpt[ptbin]);
-      lbl[ptbin]->AddText(textLabel);
-      lbl[ptbin]->SetFillColor(kWhite);
+    // Do any rebinning
+    Int_t RB = 1;
+    projB[ptbin]->Rebin(RB);
+    projC[ptbin]->Rebin(RB);
+    projData0[ptbin]->Rebin(RB);
+    projData2[ptbin]->Rebin(RB);
 
-      projB[ptbin] = (TH1D*)fB->Get(Form("delPhi_%i",ptbin));
-      projC[ptbin] = (TH1D*)fC->Get(Form("delPhi_%i",ptbin));
-      projData0[ptbin]= (TH1D*)fD->Get(Form("NPEhDelPhi_0_%i",ptbin));
-      projData2[ptbin]= (TH1D*)fD->Get(Form("NPEhDelPhi_2_%i",ptbin));
-      
-      // Do any rebinning
-      Int_t RB = 1;
-      projB[ptbin]->Rebin(RB);
-      projC[ptbin]->Rebin(RB);
-      projData0[ptbin]->Rebin(RB);
-      projData2[ptbin]->Rebin(RB);
+    // Clone to make plots without effecting fits
+    plotD0[ptbin] = (TH1D*) projData0[ptbin]->Clone();
+    plotD2[ptbin] = (TH1D*) projData2[ptbin]->Clone();
+    plotB[ptbin]  = (TH1D*) projB[ptbin]->Clone();
+    plotC[ptbin]  = (TH1D*) projC[ptbin]->Clone();
 
-      // Clone to make plots without effecting fits
-      plotD0[ptbin] = (TH1D*) projData0[ptbin]->Clone();
-      plotD2[ptbin] = (TH1D*) projData2[ptbin]->Clone();
-      plotB[ptbin]  = (TH1D*) projB[ptbin]->Clone();
-      plotC[ptbin]  = (TH1D*) projC[ptbin]->Clone();
+    // Set features that are the same in plots
+    projData0[ptbin]->SetLineColor(kBlue);
+    projData2[ptbin]->SetLineColor(kGreen+3);
+    projB[ptbin]->SetLineColor(kRed);
+    projC[ptbin]->SetLineColor(kBlack);
+    projC[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
+    plotD0[ptbin]->SetLineColor(kBlue);
+    plotD2[ptbin]->SetLineColor(kGreen+3);
+    plotD0[ptbin]->SetMarkerStyle(20);
+    plotD0[ptbin]->SetMarkerColor(kBlue);
+    plotD0[ptbin]->SetMarkerSize(0.4);
+    plotB[ptbin]->SetLineColor(kRed);
+    plotC[ptbin]->SetLineColor(kBlack);
+    plotC[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
 
-      // Set features that are the same in plots
-      projData0[ptbin]->SetLineColor(kBlue);
-      projData2[ptbin]->SetLineColor(kGreen+3);
-      projB[ptbin]->SetLineColor(kRed);
-      projC[ptbin]->SetLineColor(kBlack);
-      projC[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
-      plotD0[ptbin]->SetLineColor(kBlue);
-      plotD2[ptbin]->SetLineColor(kGreen+3);
-      plotD0[ptbin]->SetMarkerStyle(20);
-      plotD0[ptbin]->SetMarkerColor(kBlue);
-      plotD0[ptbin]->SetMarkerSize(0.4);
-      plotB[ptbin]->SetLineColor(kRed);
-      plotC[ptbin]->SetLineColor(kBlack);
-      plotC[ptbin]->GetXaxis()->SetRangeUser(-3.5,3.5);
+    combData[ptbin] = (TH1D*) projData0[ptbin]->Clone();
+    combData[ptbin] -> Add(projData2[ptbin]);
+    combData[ptbin]->SetLineColor(kBlue);
+    combData[ptbin]->SetMarkerStyle(20);
+    combData[ptbin]->SetMarkerColor(kBlue);
+    combData[ptbin]->SetMarkerSize(0.4);
+    combData[ptbin]->SetTitle("");
 
-      combData[ptbin] = (TH1D*) projData0[ptbin]->Clone();
-      combData[ptbin] -> Add(projData2[ptbin]);
-      combData[ptbin]->SetLineColor(kBlue);
-      combData[ptbin]->SetMarkerStyle(20);
-      combData[ptbin]->SetMarkerColor(kBlue);
-      combData[ptbin]->SetMarkerSize(0.4);
-      combData[ptbin]->SetTitle("");
-      
-      // Normalize
-      projB[ptbin]     -> Scale(1./normB);
-      projC[ptbin]     -> Scale(1./normC);
-      projData0[ptbin] -> Scale(1./norm0);
-      projData2[ptbin] -> Scale(1./norm2);
-      plotD0[ptbin]    -> Scale(1./norm0);
-      plotD2[ptbin]    -> Scale(1./norm2);
-      plotB[ptbin]     -> Scale(1./normB);
-      plotC[ptbin]     -> Scale(1./normC);
-      combData[ptbin]  -> Scale(1./(norm0+norm2));
-        
-      // Draw Templates on own plots
-      if(ptbin+1 <= 9) deltaPhi->cd(plotbin+1);
-      if(ptbin+1 > 9) deltaPhi2->cd(ptbin-8);
-      plotC[ptbin]->GetYaxis()->SetRangeUser(-.1,0.8);
-      plotC[ptbin]  -> Draw("hist");
-      plotB[ptbin]  -> Draw("same hist");
-      plotD0[ptbin] -> Draw("same");
-      plotD2[ptbin] -> Draw("same");
-      lbl[ptbin]    -> Draw("same");
+    // Normalize
+    projB[ptbin]     -> Scale(1./normB);
+    projC[ptbin]     -> Scale(1./normC);
+    projData0[ptbin] -> Scale(1./norm0);
+    projData2[ptbin] -> Scale(1./norm2);
+    plotD0[ptbin]    -> Scale(1./norm0);
+    plotD2[ptbin]    -> Scale(1./norm2);
+    plotB[ptbin]     -> Scale(1./normB);
+    plotC[ptbin]     -> Scale(1./normC);
+    combData[ptbin]  -> Scale(1./(norm0+norm2));
 
-      TLegend* leg = new TLegend(0.65,0.6,0.85,0.85);
-      leg->AddEntry(projB[ptbin],"b#bar{b}->NPE","lpe");
-      leg->AddEntry(projC[ptbin],"c#bar{c}->NPE","lpe");
-      leg->AddEntry(projData0[ptbin],"HT0","lpe");
-      leg->AddEntry(projData2[ptbin],"HT2","lpe");
-      leg->Draw();
+    // Subtract Pileup correction (data only)
+    projData0[ptbin]->Add(pileupCorrect[ptbin][0],-1);
+    projData2[ptbin]->Add(pileupCorrect[ptbin][1],-1);
 
-      deltaPhi->cd(1);
-      Hdphi[0]->Draw("same");
-      deltaPhi->cd(4);
-      Hdphi[1]->Draw("same");
-      
-      /*// Draw Scale Check
+    // Draw Templates on own plots
+    if(ptbin+1 <= 9) deltaPhi->cd(plotbin+1);
+    if(ptbin+1 > 9) deltaPhi2->cd(ptbin-8);
+    plotC[ptbin]->GetYaxis()->SetRangeUser(-.1,0.8);
+    plotC[ptbin]  -> Draw("hist");
+    plotB[ptbin]  -> Draw("same hist");
+    plotD0[ptbin] -> Draw("same");
+    plotD2[ptbin] -> Draw("same");
+    lbl[ptbin]    -> Draw("same");
+
+    TLegend* leg = new TLegend(0.65,0.6,0.85,0.85);
+    leg->AddEntry(projB[ptbin],"b#bar{b}->NPE","lpe");
+    leg->AddEntry(projC[ptbin],"c#bar{c}->NPE","lpe");
+    leg->AddEntry(projData0[ptbin],"HT0","lpe");
+    leg->AddEntry(projData2[ptbin],"HT2","lpe");
+    leg->Draw();
+
+    deltaPhi->cd(1);
+    Hdphi[0]->Draw("same");
+    deltaPhi->cd(4);
+    Hdphi[1]->Draw("same");
+
+    /*// Draw Scale Check
       scaleCheck->cd(1);
       TH1F* HT0 = (TH1F*) plotD0[0]->Clone();
       HT0->Divide(HT0,Hdphi[0],1,1);
@@ -275,108 +283,108 @@ void minuitFit()
       legSC->AddEntry(HT2,"HT2/prevdata","lpe");
       legSC->Draw();*/
 
-      /////////////////////
-      // Do the actual fits
-      /////////////////////
+    /////////////////////
+    // Do the actual fits
+    /////////////////////
 
-      currentPtBin = ptbin;
-      cout << "!!!!!!! HT0 ptbin: " << highpt[ptbin] << "-" << lowpt[ptbin] <<" !!!!!!!"<< endl;
-      TMinuit* gMinuit = new TMinuit(1);
-      gMinuit->SetFCN(chi2_0);
-      currentPtBin = ptbin;
-      doFit(gMinuit,p01[ptbin],p00[ptbin],e01[ptbin],e00[ptbin]);
-      
-      // assign to plotting variables
-      if(highpt[ptbin] < 6)
-	{
-	  pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
-	  dx[plotCount0] = 0.;
-	  ptOFF1[plotCount0] = pT[ptbin];
-	  Rb0[plotCount0] = p01[ptbin];///(p01[ptbin]+p00[ptbin]);
-	  eb0[plotCount0] = e01[ptbin];
-	  plotCount0++;
-	}
-    
-      // Plot results
-      fitResult0->cd(ptbin+1);
-      TH1D* dClone = (TH1D*) projData0[ptbin]->Clone();
-      TH1D* cClone = (TH1D*) projC[ptbin]->Clone();
-      TH1D* bClone = (TH1D*) projB[ptbin]->Clone();
-      stat[0][ptbin] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%i",ptbin));
-      sprintf(statLabel,"Chi2/NDF: %.2f/%.0f",curChi2,curNDF);
-      stat[0][ptbin]->InsertText(statLabel);
-      stat[0][ptbin]->SetFillColor(kWhite);
-      cClone->Scale((1.-p01[ptbin])*p00[ptbin]); bClone->Scale(p00[ptbin]*p01[ptbin]); // scale by contribution param
-      cClone->Add(bClone);
-      //cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
-      dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
-      dClone->GetYaxis()->SetRangeUser(-0.1,0.6);
-      dClone->Draw();
-      cClone->Draw("same");
-      stat[0][ptbin]->Draw("same");
-      lbl[ptbin]->Draw("same");
-            
+    currentPtBin = ptbin;
+    cout << "!!!!!!! HT0 ptbin: " << highpt[ptbin] << "-" << lowpt[ptbin] <<" !!!!!!!"<< endl;
+    TMinuit* gMinuit = new TMinuit(1);
+    gMinuit->SetFCN(chi2_0);
+    currentPtBin = ptbin;
+    doFit(gMinuit,p01[ptbin],p00[ptbin],e01[ptbin],e00[ptbin]);
 
-      cout << "!!!!!!! HT2 ptbin: " <<  highpt[ptbin] << "-" << lowpt[ptbin] <<" !!!!!!!"<< endl;
-      gMinuit->SetFCN(chi2_2);
-      doFit(gMinuit,p21[ptbin],p20[ptbin],e21[ptbin],e20[ptbin]);
-
-      // assign to plotting variables
-      if(highpt[ptbin] > 3.6)
-	{
-	  pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
-	  ptOFF2[plotCount2] = pT[ptbin];
-	  Rb2[plotCount2] = p21[ptbin];///(p21[ptbin]+p20[ptbin]);
-	  eb2[plotCount2] = e21[ptbin];
-	  plotCount2++;
-	}
-
-      // Plot results
-      fitResult2->cd(ptbin+1);
-      dClone = (TH1D*) projData2[ptbin]->Clone();
-      cClone = (TH1D*) projC[ptbin]->Clone();
-      bClone = (TH1D*) projB[ptbin]->Clone();
-      stat[2][ptbin] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%i",ptbin));
-      sprintf(statLabel,"Chi2/NDF: %.2f/%.2f",curChi2,curNDF);
-      stat[2][ptbin]->InsertText(statLabel);
-      stat[2][ptbin]->SetFillColor(kWhite);
-      cClone->Scale((1.-p21[ptbin])*p20[ptbin]); bClone->Scale(p20[ptbin]*p21[ptbin]); // scale by contribution param
-      cClone->Add(bClone);
-      // cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
-      dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
-      dClone->GetYaxis()->SetRangeUser(-0.1,0.6);
-      dClone->Draw();
-      cClone->Draw("same");
-      stat[2][ptbin]->Draw("same");
-      lbl[ptbin]->Draw("same");
-
-      cout << "!!!!!!! HTC ptbin: " <<  highpt[ptbin] << "-" << lowpt[ptbin] <<" !!!!!!!"<< endl;
-      gMinuit->SetFCN(chi2_C);
-      doFit(gMinuit,pC1[ptbin],pC0[ptbin],eC1[ptbin],eC0[ptbin]);
-      // assign to plotting variables
+    // assign to plotting variables
+    if(highpt[ptbin] < 6)
+    {
       pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
-      RbC[plotCount] = pC1[ptbin];///(p21[ptbin]+p20[ptbin]);
-      ebC[plotCount] = eC1[ptbin];
-      plotCount++;
+      dx[plotCount0] = 0.;
+      ptOFF1[plotCount0] = pT[ptbin];
+      Rb0[plotCount0] = p01[ptbin];///(p01[ptbin]+p00[ptbin]);
+      eb0[plotCount0] = e01[ptbin];
+      plotCount0++;
     }
-  
+
+    // Plot results
+    fitResult0->cd(ptbin+1);
+    TH1D* dClone = (TH1D*) projData0[ptbin]->Clone();
+    TH1D* cClone = (TH1D*) projC[ptbin]->Clone();
+    TH1D* bClone = (TH1D*) projB[ptbin]->Clone();
+    stat[0][ptbin] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%i",ptbin));
+    sprintf(statLabel,"Chi2/NDF: %.2f/%.0f",curChi2,curNDF);
+    stat[0][ptbin]->InsertText(statLabel);
+    stat[0][ptbin]->SetFillColor(kWhite);
+    cClone->Scale((1.-p01[ptbin])*p00[ptbin]); bClone->Scale(p00[ptbin]*p01[ptbin]); // scale by contribution param
+    cClone->Add(bClone);
+    //cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
+    dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
+    dClone->GetYaxis()->SetRangeUser(-0.1,0.6);
+    dClone->Draw();
+    cClone->Draw("same");
+    stat[0][ptbin]->Draw("same");
+    lbl[ptbin]->Draw("same");
+
+
+    cout << "!!!!!!! HT2 ptbin: " <<  highpt[ptbin] << "-" << lowpt[ptbin] <<" !!!!!!!"<< endl;
+    gMinuit->SetFCN(chi2_2);
+    doFit(gMinuit,p21[ptbin],p20[ptbin],e21[ptbin],e20[ptbin]);
+
+    // assign to plotting variables
+    if(highpt[ptbin] > 3.6)
+    {
+      pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
+      ptOFF2[plotCount2] = pT[ptbin];
+      Rb2[plotCount2] = p21[ptbin];///(p21[ptbin]+p20[ptbin]);
+      eb2[plotCount2] = e21[ptbin];
+      plotCount2++;
+    }
+
+    // Plot results
+    fitResult2->cd(ptbin+1);
+    dClone = (TH1D*) projData2[ptbin]->Clone();
+    cClone = (TH1D*) projC[ptbin]->Clone();
+    bClone = (TH1D*) projB[ptbin]->Clone();
+    stat[2][ptbin] = new TPaveText(.4,.75,.85,.85,Form("NB NDC%i",ptbin));
+    sprintf(statLabel,"Chi2/NDF: %.2f/%.2f",curChi2,curNDF);
+    stat[2][ptbin]->InsertText(statLabel);
+    stat[2][ptbin]->SetFillColor(kWhite);
+    cClone->Scale((1.-p21[ptbin])*p20[ptbin]); bClone->Scale(p20[ptbin]*p21[ptbin]); // scale by contribution param
+    cClone->Add(bClone);
+    // cClone->Scale(dClone->GetMaximum()/cClone->GetMaximum());
+    dClone->GetXaxis()->SetRangeUser(anaConst::lowPhi,anaConst::highPhi);
+    dClone->GetYaxis()->SetRangeUser(-0.1,0.6);
+    dClone->Draw();
+    cClone->Draw("same");
+    stat[2][ptbin]->Draw("same");
+    lbl[ptbin]->Draw("same");
+
+    cout << "!!!!!!! HTC ptbin: " <<  highpt[ptbin] << "-" << lowpt[ptbin] <<" !!!!!!!"<< endl;
+    gMinuit->SetFCN(chi2_C);
+    doFit(gMinuit,pC1[ptbin],pC0[ptbin],eC1[ptbin],eC0[ptbin]);
+    // assign to plotting variables
+    pT[ptbin] = (lowpt[ptbin]+highpt[ptbin])/2.;
+    RbC[plotCount] = pC1[ptbin];///(p21[ptbin]+p20[ptbin]);
+    ebC[plotCount] = eC1[ptbin];
+    plotCount++;
+  }
+
   cout << "!!!!!!! Previous Data: 0"<<" !!!!!!!"<< endl;
 
   //////////
   // 2.5-3.5 GeV Bin
   //////////
-  
+
   gMinuit->SetFCN(chi2_P0);
   doFit(gMinuit,RbP[0],SF[0],EbP[0],eSF[0]);
- 
+
   // assign plotting variables
   pTP[0] = 3.;
 
   // Plot results
   fitResultP->cd(1);
   /*TH1D* dClone = (TH1D*) Hdphi[0]->Clone();
-  TH1D* cClone = (TH1D*) projC[0]->Clone();
-  TH1D* bClone = (TH1D*) projB[0]->Clone();*/
+    TH1D* cClone = (TH1D*) projC[0]->Clone();
+    TH1D* bClone = (TH1D*) projB[0]->Clone();*/
   TH1D* dClone = (TH1D*) projData0[0]->Clone();
   TH1D* cClone = (TH1D*) HpphiD[0]->Clone();
   TH1D* bClone = (TH1D*) HpphiB[0]->Clone();
@@ -397,18 +405,18 @@ void minuitFit()
   ////////
   // 5.5-6.5 GeV Bin
   ////////
-  
+
   gMinuit->SetFCN(chi2_P1);
   doFit(gMinuit,RbP[1],SF[1],EbP[1],eSF[1]);
-  
+
   // assign plotting variables
   pTP[1] = 6.;
 
   // Plot results
   fitResultP->cd(2);
   /*dClone = (TH1D*) Hdphi[1]->Clone();
-  cClone = (TH1D*) projC[3]->Clone();
-  bClone = (TH1D*) projB[3]->Clone();*/
+    cClone = (TH1D*) projC[3]->Clone();
+    bClone = (TH1D*) projB[3]->Clone();*/
   dClone = (TH1D*) projData2[3]->Clone();
   cClone = (TH1D*) HpphiD[1]->Clone();
   bClone = (TH1D*) HpphiB[1]->Clone();
@@ -431,7 +439,7 @@ void minuitFit()
   ///////
   gMinuit->SetFCN(chi2_PP);
   doFit(gMinuit,RbPP[0],SFPP[0],EbPP[0],eSFPP[0]);
-  
+
   // assign plotting variables
   pTPP[0] = 3.;
 
@@ -457,7 +465,7 @@ void minuitFit()
   // Bin at 6 GeV
   gMinuit->SetFCN(chi2_PP1);
   doFit(gMinuit,RbPP[1],SFPP[1],EbPP[1],eSFPP[1]);
-  
+
   // assign plotting variables
   pTPP[1] = 6.;
 
@@ -479,7 +487,7 @@ void minuitFit()
   dClone->Draw();
   cClone->Draw("same");
   stat[3][3]->Draw("same");
-  
+
 
   // Get FONLL Calc
   Int_t l=0;
@@ -517,7 +525,7 @@ void minuitFit()
   TGraphErrors *grP     = new TGraphErrors(p-1,xP,yP,0,dyP);
   TGraphErrors *grPr    = new TGraphErrors(2,pTP,RbP,0,EbP);
   TGraphErrors *grPPr   = new TGraphErrors(2,pTPP,RbPP,0,EbPP);
-  
+
 
   c1->cd(1);
 
@@ -549,8 +557,8 @@ void minuitFit()
   grPPr->SetMarkerStyle(29);
   grPPr->SetMarkerColor(49);
   grPPr->SetLineColor(49);
-  
-  
+
+
   grP->Draw("AP");
   //grC->Draw("same P");
   gr2->Draw("same P");
@@ -558,20 +566,20 @@ void minuitFit()
   grFmax->Draw("same");
   grFmin->Draw("same");
   gr0->Draw("same P");
-  // grPr->Draw("same P");
+  grPr->Draw("same P");
   //grPPr->Draw("same P");
- 
+
   TLegend* leg2 = new TLegend(0.15,0.68,0.4,0.85);
   leg2->AddEntry(gr0,"High Tower 0 Trigs","pe");
   leg2->AddEntry(gr2,"High Tower 2 Trigs","pe");
   //leg2->AddEntry(grC,"Combined Trigs","pe");
   leg2->AddEntry(grP,"Run 5/6 Analysis (Stat Uncertainty)","pe");
-  // leg2->AddEntry(grPr,"Run 5/6 Refit (new Template)","pe");
+  leg2->AddEntry(grPr,"Run 12 Data, Run 5/6 Templates)","pe");
   //leg2->AddEntry(grPPr,"Run 5/6 Refit (prev Template)","pe");
   leg2->AddEntry(grF,"FONLL (Uncertainty: Scale Only)","l");
   leg2->Draw("same");
 
-   // Write to Root File if open
+  // Write to Root File if open
   if(makeROOT){
     file3->Close();
     file4->Close();
@@ -586,70 +594,70 @@ void minuitFit()
     // grPr->Write("PrevTempMyData");
     //grPPr->Write("PrevTempPreData");
   }
-  
-   // Make PDF with output canvases
-  if(makePDF)
-    {
-      //Set front page
-      TCanvas* fp = new TCanvas("fp","Front Page",100,0,1000,900);
-      fp->cd();
-      TBox *bLabel = new TBox(0.01, 0.88, 0.99, 0.99);
-      bLabel->SetFillColor(38);
-      bLabel->Draw();
-      TLatex tl;
-      tl.SetNDC();
-      tl.SetTextColor(kWhite);
-      tl.SetTextSize(0.033);
-      char tlName[100];
-      char tlName2[100];
-      
-      TString titlename = FileName;
-      int found = titlename.Last('/');
-      if(found >= 0){
-	titlename.Replace(0, found+1, "");
-      } 
-      sprintf(tlName, "RUN 12 NPE-h   #Delta#phi Correlations");
-      tl.SetTextSize(0.05);
-      tl.SetTextColor(kWhite);
-      tl.DrawLatex(0.05, 0.92,tlName);
-      
-      TBox *bFoot = new TBox(0.01, 0.01, 0.99, 0.12);
-      bFoot->SetFillColor(38);
-      bFoot->Draw();
-      tl.SetTextColor(kWhite);
-      tl.SetTextSize(0.05);
-      tl.DrawLatex(0.05, 0.05, (new TDatime())->AsString());
-      tl.SetTextColor(kBlack);
-      tl.SetTextSize(0.03);
-      tl.DrawLatex(0.1, 0.14, titlename);
-      sprintf(tlName,"TEST");
-      tl.DrawLatex(0.1, 0.8,tlName);
-      
-      // Place canvases in order
-      TCanvas* temp = new TCanvas();
-      sprintf(name, "FFOutput/%s.pdf[", FileName);
-      temp->Print(name);
-      sprintf(name, "FFOutput/%s.pdf", FileName);
 
-      temp = deltaPhi; 
-      temp->Print(name);
-      temp = fitResult0;
-      temp->Print(name);
-      temp = fitResult2;
-      temp->Print(name);
-      // temp = fitResultC;
-      // temp->Print(name);
-      temp = c1;
-      temp->Print(name);
-      
-      sprintf(name, "FFOutput/%s.pdf]", FileName);
-      temp->Print(name);
-    }
-   if(makeROOT)
-    {
-      file->Write();
-      file->Close();
-    }
+  // Make PDF with output canvases
+  if(makePDF)
+  {
+    //Set front page
+    TCanvas* fp = new TCanvas("fp","Front Page",100,0,1000,900);
+    fp->cd();
+    TBox *bLabel = new TBox(0.01, 0.88, 0.99, 0.99);
+    bLabel->SetFillColor(38);
+    bLabel->Draw();
+    TLatex tl;
+    tl.SetNDC();
+    tl.SetTextColor(kWhite);
+    tl.SetTextSize(0.033);
+    char tlName[100];
+    char tlName2[100];
+
+    TString titlename = FileName;
+    int found = titlename.Last('/');
+    if(found >= 0){
+      titlename.Replace(0, found+1, "");
+    } 
+    sprintf(tlName, "RUN 12 NPE-h   #Delta#phi Correlations");
+    tl.SetTextSize(0.05);
+    tl.SetTextColor(kWhite);
+    tl.DrawLatex(0.05, 0.92,tlName);
+
+    TBox *bFoot = new TBox(0.01, 0.01, 0.99, 0.12);
+    bFoot->SetFillColor(38);
+    bFoot->Draw();
+    tl.SetTextColor(kWhite);
+    tl.SetTextSize(0.05);
+    tl.DrawLatex(0.05, 0.05, (new TDatime())->AsString());
+    tl.SetTextColor(kBlack);
+    tl.SetTextSize(0.03);
+    tl.DrawLatex(0.1, 0.14, titlename);
+    sprintf(tlName,"TEST");
+    tl.DrawLatex(0.1, 0.8,tlName);
+
+    // Place canvases in order
+    TCanvas* temp = new TCanvas();
+    sprintf(name, "FFOutput/%s.pdf[", FileName);
+    temp->Print(name);
+    sprintf(name, "FFOutput/%s.pdf", FileName);
+
+    temp = deltaPhi; 
+    temp->Print(name);
+    temp = fitResult0;
+    temp->Print(name);
+    temp = fitResult2;
+    temp->Print(name);
+    // temp = fitResultC;
+    // temp->Print(name);
+    temp = c1;
+    temp->Print(name);
+
+    sprintf(name, "FFOutput/%s.pdf]", FileName);
+    temp->Print(name);
+  }
+  if(makeROOT)
+  {
+    file->Write();
+    file->Close();
+  }
 }
 
 Bool_t checkMakePDF(){
@@ -664,29 +672,29 @@ Bool_t checkMakePDF(){
       std::istringstream stream( input );
       stream >> number;
       if(number == 0)
-	fmakePDF = kFALSE;
+        fmakePDF = kFALSE;
       if(number == 1)
-	fmakePDF = kTRUE;
+        fmakePDF = kTRUE;
     }
     else
       number = 1; 
   }
   if(fmakePDF) // need a file name if making pdf
-    {
-      cout << "Need FileName (no ext.): ";
-      std::string input2;
-      std::getline( std::cin, input2 );
-      if ( !input2.empty() ){
-	std::istringstream stream2( input2 );
-	string s = stream2.str();
-	sprintf(FileName,"%s",s.c_str());
-      }
-      else
-	{
-	  sprintf(FileName, "test");
-	}
-      haveName = kTRUE;
+  {
+    cout << "Need FileName (no ext.): ";
+    std::string input2;
+    std::getline( std::cin, input2 );
+    if ( !input2.empty() ){
+      std::istringstream stream2( input2 );
+      string s = stream2.str();
+      sprintf(FileName,"%s",s.c_str());
     }
+    else
+    {
+      sprintf(FileName, "test");
+    }
+    haveName = kTRUE;
+  }
 
   return fmakePDF;
 }
@@ -694,42 +702,43 @@ Bool_t checkMakePDF(){
 Bool_t checkMakeRoot(){
 
   // Set option for pdf creation
-  Int_t number = 2; Bool_t fmakeRoot = kTRUE;
+  Int_t number = 2; Bool_t fmakeRoot = kFALSE;
   while(number > 1 || number < 0){
-    std::cout << "Make Root File? [default: 1]: ";
+    std::cout << "Make Root File? [default: 0]: ";
     std::string input;
     std::getline( std::cin, input );
     if ( !input.empty() ){
       std::istringstream stream( input );
       stream >> number;
       if(number == 0)
-	fmakeROOT = kFALSE;
+        fmakeROOT = kFALSE;
       if(number == 1)
-	fmakeROOT = kTRUE;
+        fmakeROOT = kTRUE;
     }
     else
-      number = 1; 
+      number = 0; 
   }
   if(fmakeRoot) // need a file name if making pdf
-    {
-      if(haveName)
-	sprintf(FileNameR,"%s",FileName);
-      else
-	{
-	  cout << "Need FileName (no ext.): ";
-	  std::string input2;
-	  std::getline( std::cin, input2 );
-	  if ( !input2.empty() ){
-	    std::istringstream stream2( input2 );
-	    string s = stream2.str();
-	    sprintf(FileNameR,"%s",s.c_str());
-	  }
-	  else
-	    {
-	      sprintf(FileNameR, "test");
-	    }
-	}
+  {
+    if(haveName){
+      sprintf(FileNameR,"%s",FileName);
     }
+    else if(!haveName)
+    {
+      cout << "Need FileName (no ext.): ";
+      std::string input2;
+      std::getline( std::cin, input2 );
+      if ( !input2.empty() ){
+        std::istringstream stream2( input2 );
+        string s = stream2.str();
+        sprintf(FileNameR,"%s",s.c_str());
+      }
+      else
+      {
+        sprintf(FileNameR, "test");
+      }
+    }
+  }
 
   return fmakeRoot;
 }
@@ -739,7 +748,7 @@ void doFit(TMinuit* gMinuit, Double_t& p0, Double_t& p1, Double_t& e0, Double_t&
   gMinuit->SetMaxIterations(50000);
   arglist[0]=1; //error definition: chi^2 change by 1 to get 1 sigma
   gMinuit->mnexcm("SET ERR",arglist,1,ierflg);
-  
+
   //starting values
   double vstart[2]={0.3,1}; //frac
   double step[2]={0.005,0.005}; //starting step
@@ -748,26 +757,26 @@ void doFit(TMinuit* gMinuit, Double_t& p0, Double_t& p1, Double_t& e0, Double_t&
   //simple scan to get better start values
   gMinuit->mnexcm("SCAN",arglist,0,ierflg); 
   cout<<"done with first scan!"<<endl;
-  
+
   //minimization
   arglist[0]=5000; //maxcalls
   arglist[1]=0.5; // tolerance = 0.001*[this value]*[error def] //5.0 before
   gMinuit->mnexcm("MINIMIZE",arglist,2,ierflg);
 
   cout<< "done with fit! Error Flag: " << ierflg << endl;
-  
+
   //fit results
   TString *str0 = new TString("BtoNPE frac");
   TString *str1 = new TString("Scale Factor");
   gMinuit->mnpout(0,*str0,p0,e0,dum1,dum2,ierflg);
   gMinuit->mnpout(1,*str1,p1,e1,dum1,dum2,ierflg);
-  
-  
+
+
   cout << endl << endl << "rB: " << p0 << "  A: " << p1 << endl
-       << "eB: " << e0 << " eA: " << e1 << endl << endl;
-  
+    << "eB: " << e0 << " eA: " << e1 << endl << endl;
+
   //Print results
-  
+
   gMinuit->mnstat(amin,edm,errdef,nvpar,nparx,icstat);
   gMinuit->mnprin(4,amin);
 
@@ -776,7 +785,7 @@ void doFit(TMinuit* gMinuit, Double_t& p0, Double_t& p1, Double_t& e0, Double_t&
 void chi2_0(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
 
   Int_t ptbin = currentPtBin;
-  
+
   if(projData0[ptbin]->GetNbinsX()!= projC[ptbin]->GetNbinsX()){
     cout<<"Warning: unequal bins! bin1 = "<< projData0[ptbin]->GetNbinsX()<<" bin2 = "<<projC[ptbin]->GetNbinsX()<<endl;
     return 0;
@@ -792,15 +801,15 @@ void chi2_0(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
     double y2  = projB[ptbin]     -> GetBinContent(k+1);
     double y0  = projData0[ptbin] -> GetBinContent(k+1);
     double ey0 = projData0[ptbin] -> GetBinError(k+1);
-    
+
     double ycomb = getFitFunction(par,y1,y2);
     //double ycomb = par[0]*y2 + y1*(1-par[0]);
     //double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1];
     double delta = (ycomb - y0) / ey0;
-        
+
     chiSq += delta*delta;
     nDof++;
-    
+
     //debug
     //cout <<"k: " << k << " c: " << y1 << " b: " << y2 << " data/er: " << y0 << "/"
     //	 << ey0 << " c2: " << chiSq << endl;
@@ -815,7 +824,7 @@ void chi2_0(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
 void chi2_2(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
 
   Int_t ptbin = currentPtBin;
-  
+
   if(projData0[ptbin]->GetNbinsX()!= projC[ptbin]->GetNbinsX()){
     cout<<"Warning: unequal bins! bin1 = "<< projData0[ptbin]->GetNbinsX()<<" bin2 = "<<projC[ptbin]->GetNbinsX()<<endl;
     return 0;
@@ -832,15 +841,15 @@ void chi2_2(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
     double y2  = projB[ptbin]     -> GetBinContent(k+1);
     double y0  = projData2[ptbin] -> GetBinContent(k+1);
     double ey0 = projData2[ptbin] -> GetBinError(k+1);
-    
+
     double ycomb = getFitFunction(par,y1,y2);
     // double ycomb = par[0]*y2 + y1*(1-par[0]);
     // double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1];
     double delta = (ycomb - y0) / ey0;
-        
+
     chiSq += delta*delta;
     nDof++;
-    
+
     //debug
     //cout <<"k: " << k << " c: " << y1 << " b: " << y2 << " data/er: " << y0 << "/"
     //	 << ey0 << " c2: " << chiSq << endl;
@@ -855,7 +864,7 @@ void chi2_2(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
 void chi2_C(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
 
   Int_t ptbin = currentPtBin;
-  
+
   if(combData[ptbin]->GetNbinsX()!= projC[ptbin]->GetNbinsX()){
     cout<<"Warning: unequal bins! bin1 = "<< projData0[ptbin]->GetNbinsX()<<" bin2 = "<<projC[ptbin]->GetNbinsX()<<endl;
     return 0;
@@ -874,10 +883,10 @@ void chi2_C(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
     //cout << par[0] << endl;
     double ycomb = par[0]*y2 + y1*(1-par[0]);
     double delta = (ycomb - y0) / ey0;
-        
+
     chiSq += delta*delta;
     nDof++;
-    
+
     //debug
     //cout <<"k: " << k << " c: " << y1 << " b: " << y2 << " data/er: " << y0 << "/"
     //	 << ey0 << " c2: " << chiSq << endl;
@@ -902,19 +911,19 @@ void chi2_P0(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag)
 
     Double_t binCent = Hdphi[0]->GetBinCenter(k+1);
     Int_t bin = projC[0]->FindBin(binCent); // same binning as C
-    
+
     // My Templates, their data
     /* double y1  = projC[0] -> GetBinContent(bin); 
-    double y2  = projB[0] -> GetBinContent(bin);
-    double y0  = Hdphi[0] -> GetBinContent(k+1);
-    double ey0 = Hdphi[0] -> GetBinError(k+1);*/
+       double y2  = projB[0] -> GetBinContent(bin);
+       double y0  = Hdphi[0] -> GetBinContent(k+1);
+       double ey0 = Hdphi[0] -> GetBinError(k+1);*/
 
     // My Data, Their Templates
     double y1  = HpphiD[0] -> GetBinContent(k+1); 
     double y2  = HpphiB[0] -> GetBinContent(k+1);
     double y0  = projData0[0] -> GetBinContent(bin);
     double ey0 = projData0[0] -> GetBinError(bin);
-    
+
     double ycomb = getFitFunction(par,y1,y2);
     if(ey0 > 0){
       double delta = (ycomb - y0) / ey0;
@@ -942,19 +951,19 @@ void chi2_P1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag)
 
     Double_t binCent = Hdphi[1]->GetBinCenter(k+1);
     Int_t bin = projC[3]->FindBin(binCent); // same binning as C
-    
+
     // My Templates, Their Data
     /*   double y1  = projC[3] -> GetBinContent(bin); 
-    double y2  = projB[3] -> GetBinContent(bin);
-    double y0  = Hdphi[1] -> GetBinContent(k+1);
-    double ey0 = Hdphi[1] -> GetBinError(k+1);*/
+         double y2  = projB[3] -> GetBinContent(bin);
+         double y0  = Hdphi[1] -> GetBinContent(k+1);
+         double ey0 = Hdphi[1] -> GetBinError(k+1);*/
 
     // My Data, Their Templates
     double y1  = HpphiD[1] -> GetBinContent(k+1); 
     double y2  = HpphiB[1] -> GetBinContent(k+1);
     double y0  = projData2[3] -> GetBinContent(bin);
     double ey0 = projData2[3] -> GetBinError(bin);
-    
+
     double ycomb = getFitFunction(par,y1,y2);
     if(ey0 > 0){
       double delta = (ycomb - y0) / ey0;
@@ -970,56 +979,56 @@ void chi2_P1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag)
 }
 
 void chi2_PP(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
-  
+
   curChi2 = 0.;
   curNDF = 0.;
   double chiSq = 0.;
   int nDof = 0; 
 
   for(int k=18;k<48;k++)
-    { // -1.5 to 1.5 in old data delPhi
-    
-      double y1  = HpphiD[0] -> GetBinContent(k+1); 
-      double y2  = HpphiB[0] -> GetBinContent(k+1);
-      double y0  = Hdphi[0] -> GetBinContent(k+1);
-      double ey0 = Hdphi[0] -> GetBinError(k+1);
-      
-      double ycomb = getFitFunction(par,y1,y2);
-      if(ey0>0)
-	{
-	  double delta = (ycomb - y0) / ey0;
-	  chiSq += delta*delta;
-	  nDof++;
-	}
+  { // -1.5 to 1.5 in old data delPhi
+
+    double y1  = HpphiD[0] -> GetBinContent(k+1); 
+    double y2  = HpphiB[0] -> GetBinContent(k+1);
+    double y0  = Hdphi[0] -> GetBinContent(k+1);
+    double ey0 = Hdphi[0] -> GetBinError(k+1);
+
+    double ycomb = getFitFunction(par,y1,y2);
+    if(ey0>0)
+    {
+      double delta = (ycomb - y0) / ey0;
+      chiSq += delta*delta;
+      nDof++;
     }
+  }
   func = chiSq;
   curChi2 = chiSq;
   curNDF = nDof;
 }
 
 void chi2_PP1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag){
-  
+
   curChi2 = 0.;
   curNDF = 0.;
   double chiSq = 0.;
   int nDof = 0; 
 
   for(int k=18;k<48;k++)
-    { // -1.5 to 1.5 in old data delPhi
-    
-      double y1  = HpphiD[1] -> GetBinContent(k+1); 
-      double y2  = HpphiB[1] -> GetBinContent(k+1);
-      double y0  = Hdphi[1] -> GetBinContent(k+1);
-      double ey0 = Hdphi[1] -> GetBinError(k+1);
-      
-      double ycomb = getFitFunction(par,y1,y2);
-      if(ey0 >0)
-	{
-	  double delta = (ycomb - y0) / ey0;
-	  chiSq += delta*delta;
-	  nDof++;
-	}
+  { // -1.5 to 1.5 in old data delPhi
+
+    double y1  = HpphiD[1] -> GetBinContent(k+1); 
+    double y2  = HpphiB[1] -> GetBinContent(k+1);
+    double y0  = Hdphi[1] -> GetBinContent(k+1);
+    double ey0 = Hdphi[1] -> GetBinError(k+1);
+
+    double ycomb = getFitFunction(par,y1,y2);
+    if(ey0 >0)
+    {
+      double delta = (ycomb - y0) / ey0;
+      chiSq += delta*delta;
+      nDof++;
     }
+  }
   func = chiSq;
   curChi2 = chiSq;
   curNDF = nDof;
@@ -1027,8 +1036,8 @@ void chi2_PP1(Int_t &npar,Double_t *gin,Double_t &func,Double_t *par,Int_t iflag
 
 double getFitFunction(Double_t *par, double y1, double y2)
 {
-  double ycomb = par[0]*y2 + y1*(1-par[0]); // rb*yb + (1-rb)*yv
-  //double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1]; //A*rb*yb + A*(1-rb)*yc
+  //double ycomb = par[0]*y2 + y1*(1-par[0]); // rb*yb + (1-rb)*yv
+  double ycomb = par[1]*par[0]*y2 + y1*(1-par[0])*par[1]; //A*rb*yb + A*(1-rb)*yc
   //double ycomb = par[0]*y2 + y1*(1-par[0])+par[1];  // rb*yb + (1-rb)*yv + A
   return ycomb;
 }
